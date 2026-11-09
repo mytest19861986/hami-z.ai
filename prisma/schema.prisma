@@ -1,0 +1,573 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────── Accounts & Identity ───────────────────────────
+
+model User {
+  id              String    @id @default(cuid())
+  mobile          String    @unique
+  passwordHash    String?
+  status          String    @default("ACTIVE") // ACTIVE | SUSPENDED | BLOCKED | DELETED
+  mobileVerifiedAt DateTime?
+  lastLoginAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  profile        UserProfile?
+  roles          UserRole[]
+  doctor         Doctor?
+  agent          Agent?
+  wallet         Wallet?
+  notifications  Notification[]
+  sessions       Session[]
+  loginLogs      LoginLog[]
+
+  purchasesMade         Purchase[]       @relation("PurchaseBuyer")
+  commissionsEarned     Commission[]
+  holdersCreated        PlanHolder[]
+  settlements           SettlementRequest[]
+  visitsRecorded        Visit[]          @relation("VisitRecorder")
+  reviewsWritten        DoctorReview[]   @relation("ReviewAuthor")
+  auditLogs             AuditLog[]       @relation("AuditActor")
+  grantedRoles          UserRole[]       @relation("RoleGranter")
+  uploads               Upload[]
+
+  @@index([status])
+}
+
+model UserProfile {
+  id              String  @id @default(cuid())
+  userId          String  @unique
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName       String?
+  lastName        String?
+  nationalCode    String? // 10-digit Iranian national code; unique when present
+  birthDate       DateTime?
+  gender          String? // MALE | FEMALE
+  avatarUrl       String?
+  province        String?
+  city            String?
+  address         String?
+  postalCode      String?
+  cardNumber      String? // 16 digits (optional, required for settlement)
+  sheba           String? // IR + 24 digits (optional, required for settlement)
+  bankAccountName String? // نام صاحب حساب
+  updatedAt       DateTime @updatedAt
+}
+
+// ─────────────────────────── RBAC ───────────────────────────
+
+model Role {
+  id          String           @id @default(cuid())
+  name        String           @unique // USER | DOCTOR | AGENT | REFERRER | SUPPORT | ADMIN | SUPER_ADMIN
+  title       String
+  description String?
+  users       UserRole[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id     String           @id @default(cuid())
+  name   String           @unique
+  title  String
+  module String
+  roles  RolePermission[]
+}
+
+model UserRole {
+  id          String   @id @default(cuid())
+  userId      String
+  roleId      String
+  grantedById String?
+  grantedAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  grantedBy   User?    @relation("RoleGranter", fields: [grantedById], references: [id])
+
+  @@unique([userId, roleId])
+  @@index([roleId])
+}
+
+model RolePermission {
+  id           String     @id @default(cuid())
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+}
+
+// ─────────────────────────── Doctors ───────────────────────────
+
+model Doctor {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  medicalCouncilCode String   @unique
+  specialty         String
+  clinicName        String?
+  clinicAddress     String?
+  province          String?
+  city              String?
+  clinicPhone       String?
+  bio               String?
+  discountPercent   Int?      // doctor-specific discount override; admin-set only
+  status            String    @default("PENDING") // PENDING | APPROVED | REJECTED | SUSPENDED
+  rejectReason      String?
+  reviewedById      String?
+  reviewedAt        DateTime?
+  isPublic          Boolean   @default(true) // shown in public directory when APPROVED
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  visits     Visit[]
+  reviews    DoctorReview[]
+
+  @@index([status, specialty])
+  @@index([province, city])
+}
+
+// ─────────────────────────── Sales agents ───────────────────────────
+
+model Agent {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessName  String?
+  description   String?
+  province      String?
+  city          String?
+  phone         String?
+  status        String    @default("PENDING") // PENDING | UNDER_REVIEW | APPROVED | REJECTED | SUSPENDED
+  rejectReason  String?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  customers SaleCustomer[]
+  documents AgentDocument[]
+
+  @@index([status])
+}
+
+model AgentDocument {
+  id           String   @id @default(cuid())
+  agentId      String
+  agent        Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  docType      String // NATIONAL_CARD | BUSINESS_LICENSE | OTHER
+  fileName     String
+  filePath     String
+  status       String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  rejectReason String?
+  note         String?
+  reviewedById String?
+  reviewedAt   DateTime?
+  createdAt    DateTime @default(now())
+
+  @@index([agentId, status])
+}
+
+// ─────────────────────────── Plans & membership ───────────────────────────
+
+model DiscountPlan {
+  id                      String   @id @default(cuid())
+  title                   String
+  description             String?
+  price                   Int // toman
+  durationDays            Int
+  discountPercent         Int // plan-level discount %
+  usageLimit              Int? // null = unlimited
+  salesCommissionPercent  Int // % for selling agent
+  referralCommissionPercent Int // % for referrer
+  features                String? // JSON string array of benefit bullet strings
+  isActive                Boolean  @default(true)
+  sortOrder               Int      @default(0)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  memberships Membership[]
+  purchases   Purchase[]
+  sales       SaleCustomer[]
+  commissions Commission[]
+
+  @@index([isActive])
+}
+
+// دارنده طرح — هویتی مستقل از خریدار (HOLDER-001)
+model PlanHolder {
+  id            String   @id @default(cuid())
+  firstName     String
+  lastName      String
+  nationalCode  String?  @unique
+  mobile        String?
+  createdByUserId String
+  creator       User     @relation(fields: [createdByUserId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  memberships Membership[]
+  visits      Visit[]
+  purchases   Purchase[]
+  sales       SaleCustomer[]
+
+  @@index([mobile])
+}
+
+model Membership {
+  id          String   @id @default(cuid())
+  planId      String
+  plan        DiscountPlan @relation(fields: [planId], references: [id])
+  holderId    String
+  holder      PlanHolder  @relation(fields: [holderId], references: [id])
+  buyerUserId String? // purchasing user account (for direct purchases)
+  originType  String // PURCHASE | AGENT_SALE | ADMIN_GRANT
+  purchaseId  String?  @unique
+  purchase    Purchase? @relation(fields: [purchaseId], references: [id])
+  saleId      String?  @unique
+  sale        SaleCustomer? @relation(fields: [saleId], references: [id])
+  startDate   DateTime
+  endDate     DateTime
+  status      String   @default("ACTIVE") // ACTIVE | EXPIRED | CANCELLED
+  usageLimit  Int? // snapshot of plan limit at grant time; null = unlimited
+  usedCount   Int      @default(0)
+  grantedById String?
+  cancelReason String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  visits Visit[]
+
+  @@index([holderId, status])
+  @@index([endDate])
+}
+
+// ─────────────────────────── Purchases (direct buy) ───────────────────────────
+
+model Purchase {
+  id           String   @id @default(cuid())
+  planId       String
+  plan         DiscountPlan @relation(fields: [planId], references: [id])
+  buyerUserId  String
+  buyer        User @relation("PurchaseBuyer", fields: [buyerUserId], references: [id])
+  holderId     String
+  holder       PlanHolder @relation(fields: [holderId], references: [id])
+  referrerMobile String? // معرف — entered by buyer, validated
+  amount       Int // toman actually payable (plan price snapshot)
+  status       String   @default("PENDING") // PENDING | SUCCESS | FAILED | CANCELLED | REFUNDED
+  trackingCode String   @unique
+  approvedById String?
+  approvedAt   DateTime?
+  rejectReason String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  membership   Membership? // exactly one when SUCCESS
+  referralCommission Commission? @relation("PurchaseReferralCommission")
+
+  @@index([buyerUserId])
+  @@index([status])
+}
+
+// ─────────────────────────── Agent sales & card workflow ───────────────────────────
+
+model SaleCustomer {
+  id          String   @id @default(cuid())
+  agentId     String
+  agent       Agent    @relation(fields: [agentId], references: [id])
+  holderId    String
+  holder      PlanHolder @relation(fields: [holderId], references: [id])
+  planId      String
+  plan        DiscountPlan @relation(fields: [planId], references: [id])
+  address     String?
+  postalCode  String?
+  referrerMobile String?
+  status      String   @default("PENDING_REVIEW")
+  // PENDING_REVIEW | APPROVED | CARD_ISSUED | SENT | DELIVERED | PAYMENT_REGISTERED | FINALIZED | REJECTED | RETURNED
+  rejectReason String?
+  decidedById  String?
+  decidedAt    DateTime?
+  cardNumber   String?
+  issuedAt     DateTime?
+  sentAt       DateTime?
+  deliveredAt  DateTime?
+  paymentAmount Int?
+  paymentDate  DateTime?
+  paymentTrackingCode String?
+  paymentNote  String?
+  paymentRegisteredById String?
+  finalizedAt  DateTime?
+  returnedAt   DateTime?
+  returnReason String?
+  returnedById String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  membership      Membership? // created on FINALIZED
+  saleCommission  Commission? @relation("SaleCommission")
+
+  @@index([agentId, status])
+}
+
+// ─────────────────────────── Commissions / wallet / settlement ───────────────────────────
+
+model Commission {
+  id               String   @id @default(cuid())
+  beneficiaryUserId String
+  beneficiary      User     @relation(fields: [beneficiaryUserId], references: [id])
+  type             String // SALE | REFERRAL
+  planId           String
+  plan             DiscountPlan @relation(fields: [planId], references: [id])
+  baseAmount       Int
+  percent          Int
+  amount           Int
+  status           String   @default("PENDING") // PENDING | APPROVED | PAID | CANCELLED
+  sourcePurchaseId String?  @unique
+  sourcePurchase   Purchase? @relation("PurchaseReferralCommission", fields: [sourcePurchaseId], references: [id])
+  sourceSaleId     String?  @unique
+  sourceSale       SaleCustomer? @relation("SaleCommission", fields: [sourceSaleId], references: [id])
+  description      String?
+  approvedById     String?
+  approvedAt       DateTime?
+  rejectReason     String?
+  settlementId     String?
+  settlement       SettlementRequest? @relation(fields: [settlementId], references: [id])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([beneficiaryUserId, status])
+}
+
+model Wallet {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  withdrawableBalance Int      @default(0)
+  heldBalance         Int      @default(0)
+  updatedAt           DateTime @updatedAt
+
+  transactions WalletTransaction[]
+}
+
+model WalletTransaction {
+  id                String   @id @default(cuid())
+  walletId          String
+  wallet            Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  type              String // COMMISSION_CREDIT | HOLD | RELEASE | SETTLE_PAID | ADMIN_ADJUST
+  amount            Int // always positive; direction expressed by deltas
+  withdrawableDelta Int
+  heldDelta         Int
+  balanceAfter      Int // withdrawable snapshot after tx
+  refType           String? // COMMISSION | SETTLEMENT | ADMIN
+  refId             String?
+  note              String?
+  createdBy         String? // userId of actor
+  createdAt         DateTime @default(now())
+
+  @@index([walletId, createdAt])
+}
+
+model SettlementRequest {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  amount          Int
+  status          String   @default("PENDING") // PENDING | APPROVED | PAID | REJECTED | CANCELLED
+  bankCardNumber  String
+  bankSheba       String
+  bankAccountName String
+  trackingCode    String   @unique
+  reviewedById    String?
+  reviewedAt      DateTime?
+  reviewNote      String?
+  paidById         String?
+  paidAt           DateTime?
+  paymentTrackingCode String?
+  paymentNote      String?
+  cancelledAt      DateTime?
+  cancelReason     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  commissions Commission[]
+
+  @@index([userId, status])
+  @@index([status])
+}
+
+// ─────────────────────────── Visits ───────────────────────────
+
+model Visit {
+  id             String   @id @default(cuid())
+  membershipId   String
+  membership     Membership @relation(fields: [membershipId], references: [id])
+  holderId       String
+  holder         PlanHolder @relation(fields: [holderId], references: [id])
+  doctorId       String
+  doctor         Doctor   @relation(fields: [doctorId], references: [id])
+  recordedById   String
+  recordedBy     User     @relation("VisitRecorder", fields: [recordedById], references: [id])
+  visitDate      DateTime
+  totalAmount    Int
+  discountPercent Int
+  discountBase   String // PLAN | DOCTOR
+  discountAmount Int
+  finalAmount    Int
+  status         String   @default("COMPLETED") // PENDING | APPROVED | COMPLETED | CANCELLED
+  note           String?
+  quotaConsumedAt DateTime?
+  cancelReason   String?
+  cancelledById  String?
+  cancelledAt    DateTime?
+  restoreDone    Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  review DoctorReview?
+
+  @@index([doctorId, createdAt])
+  @@index([holderId])
+  @@index([membershipId])
+}
+
+// ─────────────────────────── Doctor reviews (P1) ───────────────────────────
+
+model DoctorReview {
+  id           String   @id @default(cuid())
+  visitId      String   @unique
+  visit        Visit    @relation(fields: [visitId], references: [id])
+  doctorId     String
+  doctor       Doctor   @relation(fields: [doctorId], references: [id])
+  authorUserId String
+  author       User     @relation("ReviewAuthor", fields: [authorUserId], references: [id])
+  rating       Int // 1..5
+  comment      String?
+  status       String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  rejectReason String?
+  reviewedById String?
+  reviewedAt   DateTime?
+  createdAt    DateTime @default(now())
+
+  @@index([doctorId, status])
+}
+
+// ─────────────────────────── Auth: OTP & sessions ───────────────────────────
+
+model OtpCode {
+  id         String    @id @default(cuid())
+  mobile     String
+  codeHash   String
+  purpose    String    @default("LOGIN") // LOGIN | PASSWORD_RESET
+  expiresAt  DateTime
+  consumedAt DateTime?
+  attempts   Int       @default(0)
+  sendCount  Int       @default(1)
+  lastSentAt DateTime  @default(now())
+  createdAt  DateTime  @default(now())
+
+  @@index([mobile, createdAt])
+}
+
+model Session {
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessHash       String    @unique
+  accessExpiresAt  DateTime
+  refreshHash      String    @unique
+  refreshExpiresAt DateTime
+  refreshUsedAt    DateTime?
+  revokedAt        DateTime?
+  ip               String?
+  userAgent        String?
+  createdAt        DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model LoginLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  mobile    String
+  method    String // OTP | PASSWORD | REFRESH
+  success   Boolean
+  failReason String?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([mobile, createdAt])
+}
+
+// ─────────────────────────── Content, notifications, audit, settings ───────────────────────────
+
+model PageContent {
+  id          String   @id @default(cuid())
+  pageKey     String   @unique // about | contact | faq | terms | privacy
+  title       String
+  body        String // simple markdown-ish text
+  status      String   @default("PUBLISHED") // DRAFT | PUBLISHED
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String?
+  type      String   @default("INFO") // INFO | SUCCESS | WARNING | ERROR
+  linkUrl   String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead, createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorUserId String?
+  actor      User?    @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorName  String?
+  action     String
+  entityType String
+  entityId   String?
+  details    String? // JSON string
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model Upload {
+  id           String   @id @default(cuid())
+  ownerUserId  String
+  owner        User     @relation(fields: [ownerUserId], references: [id])
+  purpose      String // AGENT_DOC | AVATAR
+  fileName     String
+  filePath     String
+  mimeType     String?
+  sizeBytes    Int?
+  createdAt    DateTime @default(now())
+}
+
+model Setting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  title       String
+  description String?
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+}
