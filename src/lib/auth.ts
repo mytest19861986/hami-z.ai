@@ -1,17 +1,33 @@
 // نشست‌ها: توکن دسترسی + تمدید یک‌بارمصرف (AUTH-010..012 · AC-14 · AC-15 · SEC-012)
 import { db } from "@/lib/db"
 import { randomToken, sha256 } from "@/lib/password"
-import { cookies } from "next/headers"
+import { cookies, headers } from "next/headers"
 
 const ACCESS_TTL_MS = 30 * 60_000 // ۳۰ دقیقه
 const REFRESH_TTL_MS = 30 * 86400_000 // ۳۰ روز
 export const ACCESS_COOKIE = "hk_at"
 export const REFRESH_COOKIE = "hk_rt"
 
-const baseCookie = {
-  httpOnly: true,
-  sameSite: "lax" as const,
-  path: "/",
+/**
+ * ویژگی‌های کوکی نشست بر اساس زمینه سرو:
+ * - محیط توسعه (میزبان محلی روی http): SameSite=Lax کافی است.
+ * - سرو واقعی/پیش‌نمایش (میزبان غیرمحلی، مرورگر از طریق HTTPS و پروکسی متصل می‌شود):
+ *   SameSite=Lax در زمینه iframe بین‌سایتی (مثل پیش‌نمایش داخل چت) توسط مرورگر حذف می‌شود
+ *   و نشست هرگز ذخیره نمی‌شود → ورود به پنل بلافاصله به صفحه ورود برمی‌گردد.
+ *   راه‌حل استاندارد: SameSite=None + Secure (+ Partitioned برای سازگاری با مسدودسازی
+ *   کوکی شخص ثالث در کروم‌های جدید).
+ * نکته: هدر Host پشت پروکسی به نام داخلی بازنویسی می‌شود؛ تشخیص «میزبان محلی»
+ * فقط برای localhost/127.0.0.1/[::1] معتبر است و هر میزبان دیگر به‌عنوان سرو عمومی در نظر گرفته می‌شود.
+ */
+async function sessionCookieBase() {
+  const h = await headers()
+  const host = (h.get("x-forwarded-host") ?? h.get("host") ?? "").split(":")[0].trim().toLowerCase()
+  const isLocalHost =
+    host === "localhost" || host === "127.0.0.1" || host === "[::1]" || host === "0.0.0.0" || host === ""
+  if (isLocalHost) {
+    return { httpOnly: true, sameSite: "lax" as const, path: "/" }
+  }
+  return { httpOnly: true, sameSite: "none" as const, secure: true, partitioned: true, path: "/" }
 }
 
 export interface AuthUser {
@@ -55,6 +71,7 @@ export async function createSession(
     },
   })
   const jar = await cookies()
+  const baseCookie = await sessionCookieBase()
   jar.set(ACCESS_COOKIE, accessToken, { ...baseCookie, maxAge: ACCESS_TTL_MS / 1000 })
   jar.set(REFRESH_COOKIE, refreshToken, { ...baseCookie, maxAge: REFRESH_TTL_MS / 1000 })
 }
