@@ -61,8 +61,8 @@ export default function AdminDashboard() {
         <StatCard title="نمایندگان تأییدشده" value={toFaDigits(data.agents.approved)} hint={`${toFaDigits(data.agents.pending)} در انتظار`} tone="violet" icon={<Briefcase className="h-4 w-4" />} />
         <StatCard title="خرید مستقیم موفق" value={toFaDigits(data.purchases.success)} hint={`${toFaDigits(data.purchases.pending)} در انتظار تأیید`} icon={<ShoppingBag className="h-4 w-4" />} />
         <StatCard title="فروش نهایی نمایندگان" value={toFaDigits(data.sales.finalized)} hint={`${toFaDigits(data.sales.open)} پرونده در جریان`} tone="emerald" icon={<Truck className="h-4 w-4" />} />
-        <StatCard title="پورسانت در انتظار" value={formatToman(data.commissions.pendingTotal)} tone="amber" icon={<Coins className="h-4 w-4" />} />
-        <StatCard title="ویزیت‌های ثبت‌شده" value={toFaDigits(data.visitsTotal)} tone="slate" icon={<ClipboardList className="h-4 w-4" />} />
+        <StatCard title="پورسانت در انتظار تأیید" value={formatToman(data.commissions.pendingTotal)} hint="نیازمند بررسی و تأیید مدیر" tone="amber" icon={<Coins className="h-4 w-4" />} />
+        <StatCard title="ویزیت‌های ثبت‌شده" value={toFaDigits(data.visitsTotal)} hint="ثبت‌شده توسط پزشکان شبکه" tone="slate" icon={<ClipboardList className="h-4 w-4" />} />
       </div>
 
       {pendingWork.length > 0 ? (

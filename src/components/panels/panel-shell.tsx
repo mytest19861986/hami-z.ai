@@ -6,11 +6,12 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
-import { HeartPulse, Menu, LogOut, Bell, UserRound, Home } from "lucide-react"
+import { Menu, LogOut, Bell, UserRound, Home } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { api, errMessage } from "@/lib/client"
 import { ROLE_NAMES, type RoleName } from "@/constants/permissions"
 import { useNotifications } from "./notifications-bell"
+import { BrandMark } from "@/components/shared/brand"
 
 export interface PanelUser {
   id: string
@@ -83,7 +84,7 @@ export function PanelShell({
   const visibleNav = user ? nav.filter((n) => !n.permission || user.permissions.includes(n.permission) || user.roles.includes("SUPER_ADMIN")) : []
 
   const navContent = (
-    <nav className="flex flex-col gap-1">
+    <nav className="flex flex-col gap-0.5">
       {visibleNav.map((item) => {
         const active = pathname === item.href || (item.href !== `/${panelKey}` && pathname.startsWith(item.href))
         return (
@@ -92,11 +93,14 @@ export function PanelShell({
             href={item.href}
             onClick={() => setMobileOpen(false)}
             className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground",
+              "group relative flex items-center gap-3 rounded-md px-3 py-2.5 text-[13px] text-sidebar-foreground/75 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground",
               active && "bg-sidebar-accent font-semibold text-sidebar-foreground"
             )}
           >
-            {item.icon}
+            {active ? <span className="absolute right-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-gold" /> : null}
+            <span className={cn("text-sidebar-foreground/60 transition-colors group-hover:text-sidebar-foreground", active && "text-gold")}>
+              {item.icon}
+            </span>
             {item.label}
           </Link>
         )
@@ -119,10 +123,10 @@ export function PanelShell({
 
   if (!user) {
     return (
-      <div className="flex min-h-screen items-center justify-center p-6">
+      <div className="bg-girih flex min-h-screen items-center justify-center p-6">
         <div className="w-full max-w-md space-y-4">
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-12 w-full rounded-lg" />
+          <Skeleton className="h-64 w-full rounded-lg" />
         </div>
       </div>
     )
@@ -133,25 +137,23 @@ export function PanelShell({
   const roleTitles = user.roles.map((r) => ROLE_NAMES[r as RoleName] ?? r).join("، ")
 
   return (
-    <div className="flex min-h-screen bg-muted/30">
+    <div className="flex min-h-screen bg-muted/40">
       {/* سایدبار دسکتاپ */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-l bg-sidebar lg:flex">
-        <div className="flex h-16 items-center gap-2 border-b px-5 font-bold">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground">
-            <HeartPulse className="h-5 w-5" />
-          </span>
-          <div>
-            <div className="text-sm">حامی‌کارت</div>
-            <div className="text-xs font-normal text-muted-foreground">{title}</div>
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-l border-sidebar-border bg-sidebar lg:flex">
+        <div className="bg-girih-light flex h-16 items-center gap-2.5 border-b border-sidebar-border px-5">
+          <BrandMark size={32} />
+          <div className="leading-tight">
+            <div className="font-display text-sm font-bold text-sidebar-foreground">حامی‌کارت</div>
+            <div className="text-[10px] text-sidebar-foreground/60">{title}</div>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-3">{navContent}</div>
-        <div className="border-t p-3">
-          <Link href="/" className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground">
+        <div className="scroll-thin flex-1 overflow-y-auto p-3">{navContent}</div>
+        <div className="border-t border-sidebar-border p-3">
+          <Link href="/" className="flex items-center gap-3 rounded-md px-3 py-2 text-[13px] text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground">
             <Home className="h-4 w-4" />
             بازگشت به سایت
           </Link>
-          <button onClick={logout} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-rose-600 hover:bg-rose-50">
+          <button onClick={logout} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-[13px] text-rose-300/90 transition-colors hover:bg-rose-400/10 hover:text-rose-200">
             <LogOut className="h-4 w-4" />
             خروج از حساب
           </button>
@@ -160,7 +162,7 @@ export function PanelShell({
 
       {/* بدنه */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b bg-background/95 px-4 backdrop-blur">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-border bg-background/92 px-4 backdrop-blur">
           <div className="flex items-center gap-3">
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild className="lg:hidden">
@@ -168,25 +170,28 @@ export function PanelShell({
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-72 bg-sidebar p-0">
-                <SheetTitle className="border-b px-5 py-4 text-right">حامی‌کارت — {title}</SheetTitle>
+              <SheetContent side="right" className="w-72 border-sidebar-border bg-sidebar p-0">
+                <SheetTitle className="bg-girih-light flex items-center gap-2.5 border-b border-sidebar-border px-5 py-4 text-right text-sidebar-foreground">
+                  <BrandMark size={28} />
+                  حامی‌کارت — {title}
+                </SheetTitle>
                 <div className="p-3">{navContent}</div>
                 <div className="absolute bottom-3 right-0 w-full px-3">
-                  <button onClick={logout} className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-rose-600 hover:bg-rose-50">
+                  <button onClick={logout} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-rose-300/90 hover:bg-rose-400/10">
                     <LogOut className="h-4 w-4" />
                     خروج از حساب
                   </button>
                 </div>
               </SheetContent>
             </Sheet>
-            <span className="font-semibold lg:hidden">{title}</span>
+            <span className="font-display text-sm font-bold text-foreground/80 lg:hidden">{title}</span>
           </div>
           <div className="flex items-center gap-2">
             {bell}
-            <div className="hidden items-center gap-2 rounded-lg border bg-card px-3 py-1.5 sm:flex">
+            <div className="hidden items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-1.5 sm:flex">
               <UserRound className="h-4 w-4 text-primary" />
               <div className="text-right leading-tight">
-                <div className="text-xs font-semibold">{displayName}</div>
+                <div className="text-xs font-bold">{displayName}</div>
                 <div className="text-[10px] text-muted-foreground">{roleTitles}</div>
               </div>
             </div>

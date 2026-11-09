@@ -5,10 +5,27 @@ import { ok, fail, parseBody, clientIp } from "@/lib/api"
 import { db } from "@/lib/db"
 import { mobileSchema } from "@/lib/validators"
 
+// سقف درخواست کد از هر IP در ساعت (SEC: ضد بمباران پیامکی/شماره‌گردشی)
+// شل‌تر از سقف هر شماره، چون پشت پروکسی پیش‌نمایش همه یک IP لبهٔ مشترک دارند
+const IP_HOUR_LIMIT = 40
+
 export async function POST(req: NextRequest) {
   const parsed = await parseBody(req, z.object({ mobile: mobileSchema }))
   if ("response" in parsed) return parsed.response
   const { mobile } = parsed.data
+
+  const ip = clientIp(req)
+  if (ip) {
+    const sendsFromIp = await db.loginLog.count({
+      where: { ip, method: "OTP", createdAt: { gte: new Date(Date.now() - 3600_000) } },
+    })
+    if (sendsFromIp >= IP_HOUR_LIMIT) {
+      await db.loginLog.create({
+        data: { mobile, method: "OTP", success: false, failReason: "IP_RATE_LIMITED", ip, userAgent: req.headers.get("user-agent") },
+      })
+      return fail("تعداد درخواست کد از این اتصال بیش از حد مجاز است. کمی بعد دوباره تلاش کنید.", 429, { retryAfterSec: 3600 })
+    }
+  }
 
   const user = await db.user.findUnique({ where: { mobile } })
   if (user && user.status !== "ACTIVE") {
@@ -19,7 +36,6 @@ export async function POST(req: NextRequest) {
   const result = await sendOtp(mobile)
   if (!result.ok) return fail(result.error ?? "خطا در ارسال کد.", 429, { retryAfterSec: result.retryAfterSec })
 
-  const ip = clientIp(req)
   await db.loginLog.create({
     data: { mobile, method: "OTP", success: true, failReason: null, ip, userAgent: req.headers.get("user-agent") },
   })

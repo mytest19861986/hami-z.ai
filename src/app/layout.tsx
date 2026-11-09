@@ -1,6 +1,30 @@
 import type { Metadata, Viewport } from "next";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+
+// فونت‌های میزبانی‌شده محلی — بدون وابستگی به CDN بیرونی (SEC/PRIV)
+const vazir = localFont({
+  src: [
+    { path: "./fonts/Vazirmatn-Regular.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/Vazirmatn-Medium.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/Vazirmatn-SemiBold.woff2", weight: "600", style: "normal" },
+    { path: "./fonts/Vazirmatn-Bold.woff2", weight: "700", style: "normal" },
+  ],
+  variable: "--font-vazir",
+  display: "swap",
+});
+
+const estedad = localFont({
+  src: [
+    { path: "./fonts/Estedad-Medium.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/Estedad-SemiBold.woff2", weight: "600", style: "normal" },
+    { path: "./fonts/Estedad-Bold.woff2", weight: "700", style: "normal" },
+    { path: "./fonts/Estedad-ExtraBold.woff2", weight: "800", style: "normal" },
+  ],
+  variable: "--font-estedad",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -15,7 +39,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#059669",
+  themeColor: "#2a4494",
 };
 
 export default function RootLayout({
@@ -24,13 +48,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fa" dir="rtl" suppressHydrationWarning>
-      <head>
-        <link
-          rel="stylesheet"
-          href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css"
-        />
-      </head>
+    <html lang="fa" dir="rtl" suppressHydrationWarning className={`${vazir.variable} ${estedad.variable}`}>
       <body className="antialiased bg-background text-foreground font-sans">
         {children}
         <Toaster />

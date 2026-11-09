@@ -12,12 +12,13 @@ export default async function PlansPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <PublicHeader />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10">
-        <h1 className="text-2xl font-bold">طرح‌های عضویت حامی‌کارت</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-12">
+        <p className="text-xs font-bold uppercase tracking-wider text-gold-deep">تعرفه‌ها</p>
+        <h1 className="font-display mt-2 text-2xl font-extrabold sm:text-3xl">طرح‌های عضویت حامی‌کارت</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-7 text-muted-foreground">
           همه طرح‌ها شامل تخفیف ویزیت پزشکان طرف قرارداد هستند. خریدار و دارنده کارت می‌توانند اشخاص متفاوتی باشند.
         </p>
-        <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {plans.map((p) => (
             <PlanCard
               key={p.id}

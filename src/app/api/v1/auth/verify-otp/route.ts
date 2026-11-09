@@ -18,6 +18,17 @@ export async function POST(req: NextRequest) {
   const ip = clientIp(req)
   const ua = req.headers.get("user-agent")
 
+  // SEC: سقف تلاش ناموفق تأیید از هر IP در ۱۵ دقیقه (ضد حدس کد با چرخش شماره)
+  if (ip) {
+    const failsFromIp = await db.loginLog.count({
+      where: { ip, method: "OTP", success: false, createdAt: { gte: new Date(Date.now() - 15 * 60_000) } },
+    })
+    if (failsFromIp >= 15) {
+      await db.loginLog.create({ data: { mobile, method: "OTP", success: false, failReason: "IP_VERIFY_LOCKED", ip, userAgent: ua } })
+      return fail("تلاش‌های ناموفق زیاد است. ۱۵ دقیقه دیگر دوباره امتحان کنید.", 429)
+    }
+  }
+
   const verify = await verifyOtp(mobile, code)
   if (!verify.ok) {
     await db.loginLog.create({ data: { mobile, method: "OTP", success: false, failReason: verify.error, ip, userAgent: ua } })

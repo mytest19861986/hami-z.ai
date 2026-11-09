@@ -4,12 +4,12 @@ import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-import { HeartPulse, Smartphone, KeyRound, LockKeyhole, Info, ArrowRight, RefreshCw } from "lucide-react"
+import { Smartphone, KeyRound, LockKeyhole, Info, ArrowRight, RefreshCw, ShieldCheck, Clock3, FileCheck2 } from "lucide-react"
 import { api, errMessage } from "@/lib/client"
 import { toast } from "@/hooks/use-toast"
+import { BrandMark, Shamseh } from "@/components/shared/brand"
 
 type Step = "mobile" | "otp" | "password"
 
@@ -95,20 +95,79 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-emerald-50/70 to-background p-4">
-      <div className="w-full max-w-md">
-        <div className="mb-6 text-center">
-          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg">
-            <HeartPulse className="h-7 w-7" />
-          </span>
-          <h1 className="mt-4 text-xl font-bold">ورود به حامی‌کارت</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {step === "mobile" ? "با شماره موبایل خود وارد شوید یا ثبت‌نام کنید" : step === "otp" ? "کد تأیید پیامک‌شده را وارد کنید" : "ورود با رمز عبور"}
-          </p>
+    <div className="flex min-h-screen">
+      {/* پنل برند */}
+      <aside className="relative hidden w-[42%] flex-col justify-between overflow-hidden bg-sidebar p-10 text-sidebar-foreground lg:flex">
+        <div className="bg-girih-light absolute inset-0" />
+        <div className="pointer-events-none absolute -left-20 top-1/3 text-sidebar-foreground/15">
+          <Shamseh size={340} />
         </div>
+        <div className="relative">
+          <Link href="/" className="flex items-center gap-3">
+            <BrandMark size={44} />
+            <span className="font-display text-xl font-bold">حامی‌کارت</span>
+          </Link>
+        </div>
+        <div className="relative max-w-md">
+          <h2 className="font-display text-3xl font-extrabold leading-relaxed">
+            تخفیف واقعی،
+            <br />
+            در هر مراجعه
+          </h2>
+          <p className="mt-4 text-sm leading-8 text-sidebar-foreground/85">
+            با یک حساب حامی‌کارت، طرح دلخواه را تهیه کنید، پزشک طرف قرارداد را پیدا کنید و تخفیف ویزیت به‌صورت شفاف در
+            سامانه ثبت می‌شود.
+          </p>
+          <ul className="mt-8 space-y-4 text-sm">
+            {[
+              { icon: <ShieldCheck className="h-4 w-4 text-gold" />, text: "ورود امن با کد یک‌بارمصرف" },
+              { icon: <Clock3 className="h-4 w-4 text-gold" />, text: "فعال‌سازی آنی طرح پس از تأیید" },
+              { icon: <FileCheck2 className="h-4 w-4 text-gold" />, text: "سابقهٔ شفاف ویزیت‌ها و تخفیف‌ها" },
+            ].map((it) => (
+              <li key={it.text} className="flex items-center gap-3">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-accent">{it.icon}</span>
+                <span className="text-sidebar-foreground/90">{it.text}</span>
+              </li>
+            ))}
+          </ul>
+          <dl className="mt-10 grid grid-cols-3 gap-3 border-t border-sidebar-border pt-6 text-center">
+            <div>
+              <dd className="font-display text-lg font-extrabold tabular-nums text-gold">۳۱</dd>
+              <dt className="mt-1 text-[10px] text-sidebar-foreground/70">استمان پوشش</dt>
+            </div>
+            <div className="border-x border-sidebar-border">
+              <dd className="font-display text-lg font-extrabold tabular-nums text-gold">+۱۰</dd>
+              <dt className="mt-1 text-[10px] text-sidebar-foreground/70">تخصص پزشکی</dt>
+            </div>
+            <div>
+              <dd className="font-display text-lg font-extrabold tabular-nums text-gold">۱۵ تا ۳۰٪</dd>
+              <dt className="mt-1 text-[10px] text-sidebar-foreground/70">تخفیف ویزیت</dt>
+            </div>
+          </dl>
+        </div>
+        <div className="relative text-[11px] text-sidebar-foreground/60">© حامی‌کارت — نسخهٔ نمایشی</div>
+      </aside>
 
-        <Card className="shadow-lg">
-          <CardContent className="p-6">
+      {/* فرم ورود */}
+      <main className="relative flex flex-1 items-center justify-center bg-girih p-4 sm:p-8">
+        <div className="w-full max-w-md">
+          <div className="mb-8 text-center lg:text-right">
+            <div className="flex justify-center lg:hidden">
+              <Link href="/" aria-label="حامی‌کارت">
+                <BrandMark size={52} className="rounded-xl shadow-lg" />
+              </Link>
+            </div>
+            <h1 className="font-display mt-5 text-2xl font-extrabold lg:mt-0">ورود به حامی‌کارت</h1>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              {step === "mobile"
+                ? "با شماره موبایل خود وارد شوید یا ثبت‌نام کنید"
+                : step === "otp"
+                  ? "کد تأیید پیامک‌شده را وارد کنید"
+                  : "ورود با رمز عبور"}
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-border bg-card p-6 shadow-sm sm:p-8">
             {step === "mobile" ? (
               <div className="space-y-4">
                 <div className="space-y-1.5">
@@ -122,11 +181,11 @@ export default function LoginPage() {
                       value={mobile}
                       onChange={(e) => setMobile(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && mobile && sendOtp()}
-                      className="pr-9 text-left"
+                      className="h-11 pr-9 text-left"
                     />
                   </div>
                 </div>
-                <Button className="w-full" disabled={loading || mobile.length < 10} onClick={sendOtp}>
+                <Button className="h-11 w-full" disabled={loading || mobile.length < 10} onClick={sendOtp}>
                   {loading ? "در حال ارسال…" : "دریافت کد تأیید"}
                 </Button>
                 <div className="flex items-center gap-2">
@@ -134,22 +193,22 @@ export default function LoginPage() {
                   <span className="text-xs text-muted-foreground">یا</span>
                   <Separator className="flex-1" />
                 </div>
-                <Button variant="outline" className="w-full" onClick={() => setStep("password")}>
+                <Button variant="outline" className="h-11 w-full" onClick={() => setStep("password")}>
                   <LockKeyhole className="ml-1 h-4 w-4" />
                   ورود با رمز عبور
                 </Button>
               </div>
             ) : step === "otp" ? (
               <div className="space-y-4">
-                <div className="flex items-center justify-between rounded-lg bg-muted/60 px-3 py-2 text-sm">
+                <div className="flex items-center justify-between rounded-lg bg-muted/70 px-3.5 py-2.5 text-sm">
                   <span dir="ltr" className="font-medium tabular-nums">{mobile}</span>
-                  <button className="text-xs text-primary hover:underline" onClick={() => { setStep("mobile"); setCode("") }}>
+                  <button className="text-xs font-medium text-primary hover:underline" onClick={() => { setStep("mobile"); setCode("") }}>
                     تغییر شماره
                   </button>
                 </div>
 
                 {devCode ? (
-                  <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-800">
+                  <div className="flex items-start gap-2 rounded-lg border border-gold/50 bg-gold/10 p-3 text-xs leading-5 text-gold-deep">
                     <Info className="mt-0.5 h-4 w-4 shrink-0" />
                     <div>
                       سرویس پیامک واقعی هنوز متصل نشده است. کد تأیید آزمایشی شما:
@@ -171,16 +230,16 @@ export default function LoginPage() {
                       value={code}
                       onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
                       onKeyDown={(e) => e.key === "Enter" && code.length === 5 && verifyOtp()}
-                      className="pr-9 text-center text-lg tracking-[0.5em]"
+                      className="h-11 pr-9 text-center text-lg font-semibold tracking-[0.5em]"
                     />
                   </div>
                 </div>
-                <Button className="w-full" disabled={loading || code.length !== 5} onClick={verifyOtp}>
+                <Button className="h-11 w-full" disabled={loading || code.length !== 5} onClick={verifyOtp}>
                   {loading ? "در حال بررسی…" : "تأیید و ورود"}
                 </Button>
                 <Button
                   variant="ghost"
-                  className="w-full text-muted-foreground"
+                  className="h-10 w-full text-muted-foreground"
                   disabled={cooldown > 0 || loading}
                   onClick={sendOtp}
                 >
@@ -192,35 +251,35 @@ export default function LoginPage() {
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium">شماره موبایل</label>
-                  <Input dir="ltr" inputMode="tel" placeholder="09123456789" value={mobile} onChange={(e) => setMobile(e.target.value)} className="text-left" />
+                  <Input dir="ltr" inputMode="tel" placeholder="09123456789" value={mobile} onChange={(e) => setMobile(e.target.value)} className="h-11 text-left" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium">رمز عبور</label>
-                  <Input dir="ltr" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === "Enter" && password && loginWithPassword()} className="text-left" />
+                  <Input dir="ltr" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === "Enter" && password && loginWithPassword()} className="h-11 text-left" />
                 </div>
-                <Button className="w-full" disabled={loading || !mobile || !password} onClick={loginWithPassword}>
+                <Button className="h-11 w-full" disabled={loading || !mobile || !password} onClick={loginWithPassword}>
                   {loading ? "در حال ورود…" : "ورود"}
                 </Button>
-                <Button variant="ghost" className="w-full text-muted-foreground" onClick={() => setStep("mobile")}>
+                <Button variant="ghost" className="h-10 w-full text-muted-foreground" onClick={() => setStep("mobile")}>
                   <ArrowRight className="ml-1 h-4 w-4" />
                   ورود با کد تأیید
                 </Button>
-                <p className="text-center text-xs text-muted-foreground">
+                <p className="text-center text-xs leading-5 text-muted-foreground">
                   ورود با رمز فقط برای حساب‌هایی که رمز تعیین کرده‌اند فعال است. حساب کاربری معمولی با کد تأیید وارد می‌شود.
                 </p>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
 
-        <p className="mt-6 text-center text-xs text-muted-foreground">
-          <Link href="/" className="hover:text-foreground">بازگشت به صفحه اصلی</Link>
-          <span className="mx-2">·</span>
-          ورود شما به معنای پذیرش
-          <Link href="/p/terms" className="mx-1 hover:text-foreground">قوانین</Link>
-          است.
-        </p>
-      </div>
+          <p className="mt-6 text-center text-xs text-muted-foreground">
+            <Link href="/" className="hover:text-foreground">بازگشت به صفحه اصلی</Link>
+            <span className="mx-2">·</span>
+            ورود شما به معنای پذیرش
+            <Link href="/p/terms" className="mx-1 hover:text-foreground">قوانین</Link>
+            است.
+          </p>
+        </div>
+      </main>
     </div>
   )
 }

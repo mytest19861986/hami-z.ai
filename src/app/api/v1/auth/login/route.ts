@@ -8,6 +8,12 @@ import { db } from "@/lib/db"
 import { mobileSchema } from "@/lib/validators"
 
 // ورود با رمز عبور — فقط برای حساب‌هایی که رمز دارند (AUTH-005..008)
+// SEC: قفل موقت پس از تلاش‌های ناموفق مکرر (ضد brute-force)
+// سقف شماره دقیق است؛ سقف IP شل‌تر چون پشت پروکسی پیش‌نمایش همه یک IP لبهٔ مشترک دارند
+const FAIL_WINDOW_MS = 15 * 60_000
+const MAX_FAILS_BY_MOBILE = 5
+const MAX_FAILS_BY_IP = 15
+
 export async function POST(req: NextRequest) {
   const parsed = await parseBody(
     req,
@@ -18,6 +24,20 @@ export async function POST(req: NextRequest) {
 
   const ip = clientIp(req)
   const ua = req.headers.get("user-agent")
+
+  const since = new Date(Date.now() - FAIL_WINDOW_MS)
+  const [failsByMobile, failsByIp] = await Promise.all([
+    db.loginLog.count({ where: { mobile, method: "PASSWORD", success: false, createdAt: { gte: since } } }),
+    ip
+      ? db.loginLog.count({ where: { ip, method: "PASSWORD", success: false, createdAt: { gte: since } } })
+      : Promise.resolve(0),
+  ])
+  if (failsByMobile >= MAX_FAILS_BY_MOBILE || failsByIp >= MAX_FAILS_BY_IP) {
+    await db.loginLog.create({
+      data: { mobile, method: "PASSWORD", success: false, failReason: "LOCKED_TOO_MANY_FAILS", ip, userAgent: ua },
+    })
+    return fail("تلاش‌های ناموفق زیاد بوده است. برای حفاظت از حساب، ۱۵ دقیقه دیگر دوباره امتحان کنید.", 429)
+  }
 
   const user = await db.user.findUnique({ where: { mobile }, include: { roles: { include: { role: true } } } })
 

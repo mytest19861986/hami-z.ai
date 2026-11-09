@@ -77,9 +77,10 @@ export default function DoctorsPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <PublicHeader />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10">
-        <h1 className="text-2xl font-bold">پزشکان طرف قرارداد</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-12">
+        <p className="text-xs font-bold uppercase tracking-wider text-gold-deep">شبکهٔ درمانی</p>
+        <h1 className="font-display mt-2 text-2xl font-extrabold sm:text-3xl">پزشکان طرف قرارداد</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-7 text-muted-foreground">
           جست‌وجو بر اساس نام، تخصص و موقعیت استان/شهر — فقط پزشکان تأییدشده نمایش داده می‌شوند.
         </p>
 
@@ -193,7 +194,7 @@ export default function DoctorsPage() {
                           <div className="mt-0.5 text-sm text-primary">{d.specialty}</div>
                         </div>
                         {d.discountPercent ? (
-                          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                          <span className="rounded-md bg-secondary px-2.5 py-1 text-[11px] font-bold tabular-nums text-secondary-foreground">
                             {d.discountPercent}٪ تخفیف
                           </span>
                         ) : null}

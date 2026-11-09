@@ -9,7 +9,8 @@ export interface ApiError {
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+    // X-Requested-With نشانهٔ درخواست‌های خود اپ است (لایهٔ ضد CSRF؛ هدر سفارشی از مبدا متقاطع قابل ارسال نیست)
+    headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest", ...(init?.headers ?? {}) },
     credentials: "same-origin",
   })
   let json: { ok?: boolean; data?: T; error?: string } | null = null

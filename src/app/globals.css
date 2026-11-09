@@ -6,8 +6,11 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: "Vazirmatn", "Tahoma", "Segoe UI", sans-serif;
-  --font-mono: "Vazirmatn", "Courier New", monospace;
+  --font-sans: var(--font-vazir), "Vazirmatn", "Tahoma", "Segoe UI", sans-serif;
+  --font-display: var(--font-estedad), var(--font-vazir), "Vazirmatn", sans-serif;
+  --font-mono: var(--font-vazir), "Courier New", monospace;
+  --color-gold: var(--gold);
+  --color-gold-deep: var(--gold-deep);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -43,80 +46,150 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* ─────────────────────────────────────────────────────────────
+   هویت رنگی «لاجورد و زعفران» — کاغذ عاجی، لاجورد عمیق، زعفران
+   ───────────────────────────────────────────────────────────── */
 :root {
-  --radius: 0.75rem;
-  --background: oklch(0.995 0.002 180);
-  --foreground: oklch(0.19 0.02 170);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.19 0.02 170);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.19 0.02 170);
-  --primary: oklch(0.596 0.145 163.225);
-  --primary-foreground: oklch(0.985 0.005 170);
-  --secondary: oklch(0.95 0.052 163.051);
-  --secondary-foreground: oklch(0.378 0.077 168.94);
-  --muted: oklch(0.965 0.005 170);
-  --muted-foreground: oklch(0.51 0.02 170);
-  --accent: oklch(0.95 0.052 163.051);
-  --accent-foreground: oklch(0.378 0.077 168.94);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.91 0.01 170);
-  --input: oklch(0.91 0.01 170);
-  --ring: oklch(0.696 0.17 162.48);
-  --chart-1: oklch(0.696 0.17 162.48);
-  --chart-2: oklch(0.596 0.145 163.225);
-  --chart-3: oklch(0.432 0.095 166.913);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0.005 170);
-  --sidebar-foreground: oklch(0.19 0.02 170);
-  --sidebar-primary: oklch(0.508 0.118 165.612);
-  --sidebar-primary-foreground: oklch(0.985 0.005 170);
-  --sidebar-accent: oklch(0.95 0.052 163.051);
-  --sidebar-accent-foreground: oklch(0.378 0.077 168.94);
-  --sidebar-border: oklch(0.91 0.01 170);
-  --sidebar-ring: oklch(0.696 0.17 162.48);
+  --radius: 0.625rem;
+  --background: #f6f1e7;
+  --foreground: #1d2433;
+  --card: #ffffff;
+  --card-foreground: #1d2433;
+  --popover: #ffffff;
+  --popover-foreground: #1d2433;
+  --primary: #2a4494;
+  --primary-foreground: #f8f4ea;
+  --secondary: #e8edf9;
+  --secondary-foreground: #223a7e;
+  --muted: #ede7da;
+  --muted-foreground: #5d6576;
+  --accent: #f0eadb;
+  --accent-foreground: #1d2433;
+  --destructive: #b94334;
+  --border: #dfd7c5;
+  --input: #d8cfbc;
+  --ring: #2a4494;
+  --gold: #d9942b;
+  --gold-deep: #a86f1a;
+  --chart-1: #2a4494;
+  --chart-2: #d9942b;
+  --chart-3: #3e7c5b;
+  --chart-4: #b26e3c;
+  --chart-5: #6b7a99;
+  --sidebar: #1a2130;
+  --sidebar-foreground: #e8e3d5;
+  --sidebar-primary: #d9942b;
+  --sidebar-primary-foreground: #1a2130;
+  --sidebar-accent: #252e42;
+  --sidebar-accent-foreground: #f6f1e7;
+  --sidebar-border: rgba(246, 241, 231, 0.1);
+  --sidebar-ring: #d9942b;
 }
 
 .dark {
-  --background: oklch(0.16 0.015 170);
-  --foreground: oklch(0.97 0.005 170);
-  --card: oklch(0.21 0.015 170);
-  --card-foreground: oklch(0.97 0.005 170);
-  --popover: oklch(0.21 0.015 170);
-  --popover-foreground: oklch(0.97 0.005 170);
-  --primary: oklch(0.696 0.17 162.48);
-  --primary-foreground: oklch(0.15 0.02 170);
-  --secondary: oklch(0.28 0.03 165);
-  --secondary-foreground: oklch(0.97 0.005 170);
-  --muted: oklch(0.26 0.015 170);
-  --muted-foreground: oklch(0.72 0.02 170);
-  --accent: oklch(0.28 0.03 165);
-  --accent-foreground: oklch(0.97 0.005 170);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 16%);
-  --ring: oklch(0.696 0.17 162.48);
-  --chart-1: oklch(0.696 0.17 162.48);
-  --chart-2: oklch(0.596 0.145 163.225);
-  --chart-3: oklch(0.432 0.095 166.913);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.21 0.015 170);
-  --sidebar-foreground: oklch(0.97 0.005 170);
-  --sidebar-primary: oklch(0.696 0.17 162.48);
-  --sidebar-primary-foreground: oklch(0.15 0.02 170);
-  --sidebar-accent: oklch(0.28 0.03 165);
-  --sidebar-accent-foreground: oklch(0.97 0.005 170);
-  --sidebar-border: oklch(1 0 0 / 12%);
-  --sidebar-ring: oklch(0.696 0.17 162.48);
+  --background: #151a26;
+  --foreground: #eae5d8;
+  --card: #1b2130;
+  --card-foreground: #eae5d8;
+  --popover: #1b2130;
+  --popover-foreground: #eae5d8;
+  --primary: #8fa5f0;
+  --primary-foreground: #141a28;
+  --secondary: #232c41;
+  --secondary-foreground: #c9d4f5;
+  --muted: #202838;
+  --muted-foreground: #9aa3b5;
+  --accent: #232c41;
+  --accent-foreground: #eae5d8;
+  --destructive: #d06a5b;
+  --border: rgba(234, 229, 216, 0.13);
+  --input: rgba(234, 229, 216, 0.18);
+  --ring: #8fa5f0;
+  --gold: #e3a64b;
+  --gold-deep: #d9942b;
+  --chart-1: #8fa5f0;
+  --chart-2: #e3a64b;
+  --chart-3: #6bab87;
+  --chart-4: #c98d61;
+  --chart-5: #8d99b3;
+  --sidebar: #11151f;
+  --sidebar-foreground: #e8e3d5;
+  --sidebar-primary: #e3a64b;
+  --sidebar-primary-foreground: #11151f;
+  --sidebar-accent: #1e2536;
+  --sidebar-accent-foreground: #f6f1e7;
+  --sidebar-border: rgba(246, 241, 231, 0.09);
+  --sidebar-ring: #e3a64b;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection {
+    background: var(--gold);
+    color: #1a2130;
+  }
+  h1, h2, h3 {
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer utilities {
+  /* تایتر نمایشی برند */
+  .font-display {
+    font-family: var(--font-estedad), var(--font-vazir), "Vazirmatn", sans-serif;
+  }
+
+  /* نقش هندسی «شمسه» — شبکهٔ ستارهٔ هشت‌پر (کاشی‌کاری ایرانی) */
+  .bg-girih {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%232a4494' stroke-opacity='0.08'%3E%3Crect x='15' y='15' width='26' height='26'/%3E%3Crect x='15' y='15' width='26' height='26' transform='rotate(45 28 28)'/%3E%3Ccircle cx='28' cy='28' r='3.5'/%3E%3C/g%3E%3C/svg%3E");
+  }
+  .bg-girih-light {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%23f6f1e7' stroke-opacity='0.07'%3E%3Crect x='15' y='15' width='26' height='26'/%3E%3Crect x='15' y='15' width='26' height='26' transform='rotate(45 28 28)'/%3E%3Ccircle cx='28' cy='28' r='3.5'/%3E%3C/g%3E%3C/svg%3E");
+  }
+  .bg-girih-gold {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%23d9942b' stroke-opacity='0.12'%3E%3Crect x='15' y='15' width='26' height='26'/%3E%3Crect x='15' y='15' width='26' height='26' transform='rotate(45 28 28)'/%3E%3Ccircle cx='28' cy='28' r='3.5'/%3E%3C/g%3E%3C/svg%3E");
+  }
+
+  /* خط زیرین زعفرانی برای کلمهٔ کلیدی تیترها */
+  .mark-gold {
+    position: relative;
+    white-space: nowrap;
+  }
+  .mark-gold::after {
+    content: "";
+    position: absolute;
+    right: -0.1em;
+    left: -0.1em;
+    bottom: 0.08em;
+    height: 0.28em;
+    background: color-mix(in srgb, var(--gold) 38%, transparent);
+    z-index: -1;
+    border-radius: 2px;
+  }
+
+  /* نوار باریک اسکرول پنل‌ها */
+  .scroll-thin {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--foreground) 22%, transparent) transparent;
+  }
+  .scroll-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scroll-thin::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--foreground) 22%, transparent);
+    border-radius: 999px;
+  }
+  .scroll-thin::-webkit-scrollbar-track {
+    background: transparent;
   }
 }
