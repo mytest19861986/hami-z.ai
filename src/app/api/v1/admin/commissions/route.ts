@@ -91,12 +91,13 @@ export async function POST(req: NextRequest) {
       if (commission.status !== "PENDING") throw new Error("NOT_PENDING")
 
       if (decision === "APPROVE") {
-        // تأیید = افزایش اتمیک موجودی قابل برداشت (WALLET-002 · REF-006)
+        // تأیید = افزایش اتمیک موجودی قابل برداشت (WALLET-002 · REF-006 · WALLET-006 idempotent)
         await applyWalletTx(tx, commission.beneficiaryUserId, "COMMISSION_CREDIT", commission.amount, {
           refType: "COMMISSION",
           refId: commission.id,
           note: `تأیید پورسانت ${commission.type === "SALE" ? "فروش" : "معرفی"}`,
           createdBy: auth.user.id,
+          idempotencyKey: `commission:${commission.id}:credit`,
         })
         const updated = await tx.commission.update({
           where: { id: commission.id, status: "PENDING" },

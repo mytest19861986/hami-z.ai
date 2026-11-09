@@ -4,6 +4,7 @@ import { ok, fail, requirePermission, parseBody } from "@/lib/api"
 import { db } from "@/lib/db"
 import { audit, notify } from "@/lib/audit"
 import { isValidNationalCode, nationalCodeSchema, toEnDigits } from "@/lib/validators"
+import { genCardSerial } from "@/lib/codes"
 
 // مدیریت طرح‌ها + اعطای مدیریتی (ADMIN-012..014 · PLAN-001..013 · OPEN-17)
 export async function GET() {
@@ -141,6 +142,7 @@ export async function PATCH(req: NextRequest) {
           startDate: now,
           endDate: new Date(now.getTime() + duration * 86400000),
           status: "ACTIVE",
+          cardSerial: genCardSerial(),
           usageLimit: plan.usageLimit,
           grantedById: auth.user.id,
         },

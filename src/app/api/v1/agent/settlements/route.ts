@@ -70,18 +70,13 @@ export async function POST(req: NextRequest) {
       if (amount > withdrawable) throw new Error("INSUFFICIENT_BALANCE")
 
       // فقط یک درخواست باز در هر لحظه (SETTLE-005/011 · AC-12)
+      // لایه ۱: بررسی سریع در سطح اپلیکیشن؛ لایه ۲: ایندکس یکتای جزئی دیتابیس
       const openCount = await tx.settlementRequest.count({
         where: { userId: auth.user.id, status: { in: ["PENDING", "APPROVED"] } },
       })
       if (openCount > 0) throw new Error("OPEN_REQUEST_EXISTS")
 
-      // نگهداشت مبلغ + ثبت درخواست در یک تراکنش (SEC-007/008)
-      await applyWalletTx(tx, auth.user.id, "HOLD", amount, {
-        refType: "SETTLEMENT",
-        note: "نگهداشت بابت درخواست تسویه",
-        createdBy: auth.user.id,
-      })
-
+      // ابتدا رکورد درخواست ساخته می‌شود تا کلید توانمندی پایدار برای نگهداشت داشته باشیم
       const settlement = await tx.settlementRequest.create({
         data: {
           userId: auth.user.id,
@@ -92,6 +87,15 @@ export async function POST(req: NextRequest) {
           trackingCode: genTrackingCode("ST"),
           status: "PENDING",
         },
+      })
+
+      // نگهداشت مبلغ در همان تراکنش (SEC-007/008 · WALLET-006 idempotent)
+      await applyWalletTx(tx, auth.user.id, "HOLD", amount, {
+        refType: "SETTLEMENT",
+        refId: settlement.id,
+        note: "نگهداشت بابت درخواست تسویه",
+        createdBy: auth.user.id,
+        idempotencyKey: `settlement:${settlement.id}:hold`,
       })
 
       return { settlement, minAmount }
@@ -120,6 +124,10 @@ export async function POST(req: NextRequest) {
       OPEN_REQUEST_EXISTS: "شما یک درخواست باز تسویه دارید؛ ابتدا وضعیت آن تعیین تکلیف شود.",
     }
     if (msg in map) return fail(map[msg], 409)
+    // قید دیتابیس (ایندکس یکتای جزئی SETTLE-005) در شرایط مسابقه فعال می‌شود
+    if (msg.includes("idx_settlement_one_open_per_user") || msg.includes("Unique constraint")) {
+      return fail(map.OPEN_REQUEST_EXISTS, 409)
+    }
     console.error("[SETTLEMENT_CREATE_FAIL]", e)
     return fail("خطا در ثبت درخواست تسویه.", 500)
   }
@@ -144,6 +152,7 @@ export async function DELETE(req: NextRequest) {
         refId: s.id,
         note: "آزادسازی بابت لغو درخواست تسویه",
         createdBy: auth.user.id,
+        idempotencyKey: `settlement:${s.id}:release`,
       })
       await tx.settlementRequest.update({
         where: { id: s.id },

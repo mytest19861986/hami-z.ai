@@ -4,6 +4,7 @@ import { ok, fail, requireUser, parseBody } from "@/lib/api"
 import { db } from "@/lib/db"
 import { toEnDigits } from "@/lib/validators"
 import { discountAmount } from "@/lib/format"
+import { getSetting } from "@/lib/settings"
 
 // ثبت ویزیت (VISIT-001..013 · AC-07 · AC-08 · BR-08) — مصرف اتمیک سهمیه
 const createSchema = z.object({
@@ -88,9 +89,20 @@ export async function POST(req: NextRequest) {
         throw new Error("QUOTA_EXHAUSTED")
       }
 
-      // مبنای تخفیف: درصد اختصاصی پزشک در صورت تعریف، وگرنه درصد طرح (OPEN-02 — فرض مستند)
-      const percent = doctor.discountPercent ?? membership.plan.discountPercent
-      const base = doctor.discountPercent !== null && doctor.discountPercent !== undefined ? "DOCTOR" : "PLAN"
+      // مبنای تخفیف بر اساس تنظیم مصوب OPEN-02 (DISCOUNT_PRECEDENCE):
+      // DOCTOR (پیش‌فرض) = درصد اختصاصی پزشک در صورت وجود مقدم است؛ PLAN = درصد طرح همیشه مقدم
+      const precedence = (await getSetting("DISCOUNT_PRECEDENCE")) || "DOCTOR"
+      const planPercent = membership.plan.discountPercent
+      const doctorPercent = doctor.discountPercent
+      let percent: number
+      let base: "PLAN" | "DOCTOR"
+      if (precedence === "PLAN") {
+        percent = planPercent
+        base = "PLAN"
+      } else {
+        percent = doctorPercent ?? planPercent
+        base = doctorPercent !== null && doctorPercent !== undefined ? "DOCTOR" : "PLAN"
+      }
       const disc = discountAmount(totalAmount, percent)
       const final = totalAmount - disc
 

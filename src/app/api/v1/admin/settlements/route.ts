@@ -88,12 +88,13 @@ export async function POST(req: NextRequest) {
         if (!s) throw new Error("NOT_FOUND")
         if (s.status !== "APPROVED") throw new Error("NOT_APPROVED")
 
-        // خروج مبلغ از نگهداشت (SETTLE-10 · WALLET-005)
+        // خروج مبلغ از نگهداشت (SETTLE-10 · WALLET-005 · WALLET-006 idempotent)
         await applyWalletTx(tx, s.userId, "SETTLE_PAID", s.amount, {
           refType: "SETTLEMENT",
           refId: s.id,
           note: `ثبت پرداخت تسویه ${s.trackingCode}`,
           createdBy: auth.user.id,
+          idempotencyKey: `settlement:${s.id}:paid`,
         })
 
         // تخصیص FIFO پورسانت‌های تأییدشده به این تسویه (REF-007 · REPORT-006)
@@ -161,12 +162,13 @@ export async function POST(req: NextRequest) {
           data: { status: "APPROVED", reviewedById: auth.user.id, reviewedAt: new Date(), reviewNote: data.note || null },
         })
       } else {
-        // رد → آزادسازی مبلغ نگه‌داشته‌شده (SETTLE-12 · BR-23)
+        // رد → آزادسازی مبلغ نگه‌داشته‌شده (SETTLE-12 · BR-23 · WALLET-006 idempotent)
         await applyWalletTx(tx, s.userId, "RELEASE", s.amount, {
           refType: "SETTLEMENT",
           refId: s.id,
           note: `آزادسازی بابت رد درخواست تسویه ${s.trackingCode}`,
           createdBy: auth.user.id,
+          idempotencyKey: `settlement:${s.id}:release`,
         })
         await tx.settlementRequest.update({
           where: { id: s.id },

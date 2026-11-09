@@ -20,14 +20,30 @@ async function getOrCreateWallet(tx: Tx, userId: string) {
  *  - RELEASE: held→withdrawable (رد/لغو تسویه)
  *  - SETTLE_PAID: -held (ثبت پرداخت خارج از سامانه)
  *  - ADMIN_ADJUST: اصلاح دستی مدیر ارشد
+ *
+ * WALLET-006 (دو لایه):
+ *  ۱. idempotencyKey — اگر رویداد مالی واحد (مثل تأیید یک پورسانت یا پرداخت یک تسویه)
+ *     قبلاً اعمال شده باشد، همان نتیجه بدون اثر دوباره برمی‌گردد؛ کلید یکتای دیتابیس
+ *     حتی در شرایط مسابقه هم تکرار را غیرممکن می‌کند.
+ *  ۲. تریگرهای append-only در دیتابیس (prisma/invariants.sql) — ردیف‌های دفترکل
+ *     هرگز قابل ویرایش یا حذف نیستند؛ فقط درج مجاز است.
  */
 export async function applyWalletTx(
   tx: Tx,
   userId: string,
   type: "COMMISSION_CREDIT" | "HOLD" | "RELEASE" | "SETTLE_PAID" | "ADMIN_ADJUST",
   amount: number,
-  opts: { refType?: string; refId?: string; note?: string; createdBy?: string; force?: boolean } = {}
-): Promise<{ walletId: string; withdrawableAfter: number }> {
+  opts: { refType?: string; refId?: string; note?: string; createdBy?: string; force?: boolean; idempotencyKey?: string } = {}
+): Promise<{ walletId: string; withdrawableAfter: number; applied: boolean }> {
+  // WALLET-006 — لایه ۱: رویداد تکراری هیچ اثر مالی دوباره نمی‌گذارد
+  if (opts.idempotencyKey) {
+    const existing = await tx.walletTransaction.findUnique({ where: { idempotencyKey: opts.idempotencyKey } })
+    if (existing) {
+      const w = await tx.wallet.findUnique({ where: { id: existing.walletId } })
+      return { walletId: existing.walletId, withdrawableAfter: w?.withdrawableBalance ?? 0, applied: false }
+    }
+  }
+
   const wallet = await getOrCreateWallet(tx, userId)
   let wd = wallet.withdrawableBalance
   let held = wallet.heldBalance
@@ -74,10 +90,11 @@ export async function applyWalletTx(
       refId: opts.refId,
       note: opts.note,
       createdBy: opts.createdBy,
+      idempotencyKey: opts.idempotencyKey,
     },
   })
 
-  return { walletId: wallet.id, withdrawableAfter: updated.withdrawableBalance }
+  return { walletId: wallet.id, withdrawableAfter: updated.withdrawableBalance, applied: true }
 }
 
 /** جمع پورسانت‌های در انتظار تأیید برای نمایش «در انتظار» (WALLET-003) */

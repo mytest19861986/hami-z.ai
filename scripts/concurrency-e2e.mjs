@@ -74,10 +74,10 @@ async function main() {
   }, admin.cookie)
   assert(grantRes.json?.ok, "اعطای طرح یک‌مصرف به دارنده تست")
 
-  // شناسه عضویت از طریق احراز شرایط پزشک
+  // شناسه عضویت از طریق احراز شرایط پزشک (چند عضویت یک‌مصرف از اجراهای قبلی ممکن است باشد → سهمیهٔ دست‌نخورده انتخاب می‌شود)
   const elig = await call("POST", "/api/v1/doctor/eligibility", { nationalCode: holderCode }, doctor.cookie)
-  const membership = elig.json.data.memberships.find((m) => m.planTitle.includes("یک‌مصرف"))
-  assert(!!membership && membership.remaining === 1, "عضویت با سهمیه ۱ شناخته شد")
+  const membership = elig.json.data.memberships.find((m) => m.planTitle.includes("یک‌مصرف") && m.eligible && m.remaining === 1)
+  assert(!!membership, "عضویت با سهمیه ۱ شناخته شد")
 
   // دو ثبت ویزیت هم‌زمان روی همان سهمیه (AC-07)
   const [v1, v2] = await Promise.all([

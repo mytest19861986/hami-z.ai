@@ -36,6 +36,7 @@ export async function GET() {
       usageLimit: m.usageLimit,
       usedCount: m.usedCount,
       remaining: m.usageLimit === null ? null : Math.max(0, m.usageLimit - m.usedCount),
+      cardSerial: m.cardSerial, // SURF-USER: سریال کارت مجازی
     }
   })
 

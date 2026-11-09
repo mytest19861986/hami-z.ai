@@ -16,8 +16,10 @@ export async function POST(req: NextRequest) {
 
   const ip = clientIp(req)
   if (ip) {
+    // فقط ارسال‌های واقعی (success) شمرده می‌شوند؛ پاسخ‌های 429 خودشان شمارنده را
+    // افزایش نمی‌دهند تا قفلِ خودتقویت‌شونده برای کاربر سالم ساخته نشود.
     const sendsFromIp = await db.loginLog.count({
-      where: { ip, method: "OTP", createdAt: { gte: new Date(Date.now() - 3600_000) } },
+      where: { ip, method: "OTP", success: true, createdAt: { gte: new Date(Date.now() - 3600_000) } },
     })
     if (sendsFromIp >= IP_HOUR_LIMIT) {
       await db.loginLog.create({

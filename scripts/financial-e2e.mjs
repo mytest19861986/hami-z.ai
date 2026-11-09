@@ -92,6 +92,7 @@ async function main() {
 
   // ۳) پورسانت فروش نماینده
   console.log("\n💰 پورسانت فروش…")
+  const walletBefore = (await call("GET", "/api/v1/agent/wallet", null, agent)).json.data
   const commissions = (await call("GET", "/api/v1/agent/commissions", null, agent)).json.data
   const saleCommission = commissions.items.find((c) => c.type === "SALE" && c.status === "PENDING")
   assert(!!saleCommission, "پورسانت فروش PENDING ایجاد شد")
@@ -104,15 +105,23 @@ async function main() {
   assert(approveTwice.status === 409, "تأیید تکراری پورسانت رد شد (REF-009)")
 
   const wallet = (await call("GET", "/api/v1/agent/wallet", null, agent)).json.data
-  assert(wallet.withdrawableBalance === 180000, `مانده قابل برداشت = ۱۸۰٬۰۰۰ (${wallet.withdrawableBalance})`)
+  assert(
+    wallet.withdrawableBalance === walletBefore.withdrawableBalance + 180000,
+    `تأیید پورسانت دقیقاً ۱۸۰٬۰۰۰ به مانده افزود (${walletBefore.withdrawableBalance} → ${wallet.withdrawableBalance})`
+  )
 
   // ۴) تسویه
   console.log("\n🏦 تسویه…")
   const tooMuch = await call("POST", "/api/v1/agent/settlements", { amount: 999999 }, agent)
   assert(tooMuch.status === 409, "درخواست بیشتر از مانده رد شد (SETTLE-004)")
 
+  // پاک‌سازی اطلاعات بانکی (مقاوم به ترتیب اجرای سوئیت‌ها) + لغو درخواست باز احتمالی
+  await call("PUT", "/api/v1/user/profile", { cardNumber: "", sheba: "", bankAccountName: "" }, agent)
+  for (const s of ((await call("GET", "/api/v1/agent/settlements", null, agent)).json.data ?? []).filter((x) => x.status === "PENDING")) {
+    await call("DELETE", "/api/v1/agent/settlements", { id: s.id }, agent)
+  }
   const noBank = await call("POST", "/api/v1/agent/settlements", { amount: 180000 }, agent)
-  assert(noBank.status === 409 && noBank.json.error.includes("بانکی"), "درخواست بدون اطلاعات بانکی رد شد (SETTLE-002)")
+  assert(noBank.status === 409 && noBank.json.error.includes("صاحب حساب"), `درخواست بدون اطلاعات بانکی رد شد (SETTLE-002): «${noBank.json.error.slice(0, 40)}…»`)
 
   // تولید کارت معتبر Luhn و شبا معتبر
   function luhnValid(card) {
@@ -139,16 +148,10 @@ async function main() {
     return rem === 1
   }
   let sheba = null
-  outer: for (let a = 0; a < 10; a++) {
-    for (let b = 0; b < 10; b++) {
-      const body = "017000000" + a + String(b).padStart(2, "0") + "84012345" + "6789".padStart(4, "0")
-      // 24 رقم لازم
-      const cand = "IR" + (body + "000000000000").slice(0, 24)
-      if (shebaValid(cand)) {
-        sheba = cand
-        break outer
-      }
-    }
+  for (let n = 0; n < 1000 && !sheba; n++) {
+    const body = ("0170000000" + String(n)).padEnd(24, "0").slice(0, 24)
+    const cand = "IR" + body
+    if (shebaValid(cand)) sheba = cand
   }
   assert(!!card && !!sheba, `کارت/شبای معتبر تولید شد (${card} / ${sheba.slice(0, 6)}…)`)
 
@@ -160,13 +163,20 @@ async function main() {
   const minFail = await call("POST", "/api/v1/agent/settlements", { amount: 50000 }, agent)
   assert(minFail.status === 409, "کمتر از حداقل مبلغ تسویه رد شد (SETTLE-004)")
 
-  const settle = await call("POST", "/api/v1/agent/settlements", { amount: 180000 }, agent)
+  // مبلغ تسویه = کل مانده فعلی (مقاوم به ترتیب اجرای سوئیت‌ها)
+  const walletPre = (await call("GET", "/api/v1/agent/wallet", null, agent)).json.data
+  const settleAmount = walletPre.withdrawableBalance
+  assert(settleAmount >= 100000, `مانده برای تسویه کافی است (${settleAmount.toLocaleString("fa-IR")})`)
+  const settle = await call("POST", "/api/v1/agent/settlements", { amount: settleAmount }, agent)
   assert(settle.json?.ok, "درخواست تسویه ثبت و مبلغ نگه‌داشته شد")
   const settleDup = await call("POST", "/api/v1/agent/settlements", { amount: 100000 }, agent)
   assert(settleDup.status === 409, "درخواست دوم هم‌زمان رد شد (SETTLE-005 · AC-12)")
 
   const walletAfter = (await call("GET", "/api/v1/agent/wallet", null, agent)).json.data
-  assert(walletAfter.withdrawableBalance === 0 && walletAfter.heldBalance === 180000, "مانده صحیح به نگهداشت منتقل شد")
+  assert(
+    walletAfter.withdrawableBalance === 0 && walletAfter.heldBalance === walletPre.heldBalance + settleAmount,
+    `مانده صحیح به نگهداشت منتقل شد (wd=0، held=${walletAfter.heldBalance})`
+  )
 
   const settlementId = settle.json.data.settlementId
   const review = await call("POST", "/api/v1/admin/settlements", { action: "review", settlementId, decision: "APPROVE" }, admin)

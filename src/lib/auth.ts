@@ -76,7 +76,7 @@ export async function createSession(
   jar.set(REFRESH_COOKIE, refreshToken, { ...baseCookie, maxAge: REFRESH_TTL_MS / 1000 })
 }
 
-/** تمدید نشست — تضمین حداکثر یک جانشین معتبر برای هر اعتبار تمدید (AC-15) */
+/** تمدید نشست — تضمین حداکثر یک جانشین معتبر برای هر اعتبار تمدید (AC-15 · AUTH-011) */
 export async function refreshSession(): Promise<boolean> {
   const jar = await cookies()
   const rt = jar.get(REFRESH_COOKIE)?.value
@@ -86,7 +86,24 @@ export async function refreshSession(): Promise<boolean> {
   if (!session) return false
 
   const now = new Date()
-  if (session.revokedAt || session.refreshUsedAt) return false
+
+  // AUTH-011 — بازپخش اعتبار تمدیدِ قبلاً مصرف‌شده:
+  //  • تازه (کمتر از ۳۰ ثانیه از چرخش) = رقابت سالم تب‌های مرورگر → فقط همین درخواست رد می‌شود.
+  //  • کهنه (بیش از ۳۰ ثانیه) = نشانه سوءاستفاده/سرقت توکن → کل خانواده نشست‌های کاربر
+  //    باطل می‌شود تا جانشینِ مهاجم بی‌اثر شود.
+  const REUSE_GRACE_MS = 30_000
+  if (session.refreshUsedAt) {
+    const rotatedAt = new Date(session.refreshUsedAt).getTime()
+    if (now.getTime() - rotatedAt > REUSE_GRACE_MS) {
+      await db.session.updateMany({
+        where: { userId: session.userId, revokedAt: null },
+        data: { revokedAt: now },
+      })
+    }
+    return false
+  }
+
+  if (session.revokedAt) return false
   if (new Date(session.refreshExpiresAt) < now) return false
 
   // مصرف اتمیک اعتبار تمدید: فقط اگر هنوز مصرف‌نشده باشد

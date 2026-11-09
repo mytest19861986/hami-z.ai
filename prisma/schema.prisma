@@ -238,6 +238,8 @@ model Membership {
   status      String   @default("ACTIVE") // ACTIVE | EXPIRED | CANCELLED
   usageLimit  Int? // snapshot of plan limit at grant time; null = unlimited
   usedCount   Int      @default(0)
+  // SURF-USER: سریال کارت مجازی حامی‌کارت (نمایش روی کارت و بارکد)
+  cardSerial  String?  @unique
   grantedById String?
   cancelReason String?
   createdAt   DateTime @default(now())
@@ -369,6 +371,8 @@ model WalletTransaction {
   refId             String?
   note              String?
   createdBy         String? // userId of actor
+  // WALLET-006: کلید توانمندی — جلوگیری از اثر دوباره یک رویداد مالی واحد
+  idempotencyKey    String?  @unique
   createdAt         DateTime @default(now())
 
   @@index([walletId, createdAt])

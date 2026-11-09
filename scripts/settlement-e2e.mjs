@@ -56,10 +56,20 @@ const admin = await login("09120000000")
 const agent = await login("09120000002")
 console.log("🔑 ورود مدیر و نماینده")
 
-// وضعیت کیف پول فعلی
+// اگر لغو درخواست باز قبلی مانده، ابتدا لغو می‌کنیم تا مانده واقعی و SETTLE-005 سناریوی خالی داشته باشیم
+const openList = (await call("GET", "/api/v1/agent/settlements", null, agent)).json.data ?? []
+for (const s of openList.filter((x) => x.status === "PENDING")) {
+  await call("DELETE", "/api/v1/agent/settlements", { id: s.id }, agent)
+  console.log(`  ↺ درخواست باز قبلی ${s.trackingCode} لغو شد (SETTLE-005 آماده آزمون مجدد)`)
+}
+
+// وضعیت کیف پول فعلی — پس از پاک‌سازی درخواست‌های باز
 const wallet0 = (await call("GET", "/api/v1/agent/wallet", null, agent)).json.data
 console.log(`💰 مانده فعلی نماینده: قابل‌برداشت=${wallet0.withdrawableBalance} نگهداشت=${wallet0.heldBalance}`)
 assert(wallet0.withdrawableBalance >= 180000, "مانده قابل برداشت ≥ ۱۸۰٬۰۰۰ (از تست قبلی)")
+
+// پاک‌سازی اطلاعات بانکی برای آزمون «تسویه بدون بانک» (مقاوم به ترتیب اجرای سوئیت‌ها)
+await call("PUT", "/api/v1/user/profile", { cardNumber: "", sheba: "", bankAccountName: "" }, agent)
 
 // ۱) تسویه بدون اطلاعات بانکی
 console.log("\n🏦 تسویه…")

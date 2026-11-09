@@ -4,6 +4,7 @@ import { ok, fail, requirePermission, parseBody } from "@/lib/api"
 import { db } from "@/lib/db"
 import { audit, notify } from "@/lib/audit"
 import { commissionAmount } from "@/lib/format"
+import { genCardSerial } from "@/lib/codes"
 
 // چرخه فروش و کارت (SALE-004..013 · ADMIN-015/016 · AC-09/10 · BR-11/12)
 const SALE_TRANSITIONS: Record<string, string[]> = {
@@ -142,6 +143,7 @@ export async function POST(req: NextRequest) {
               startDate: now,
               endDate: new Date(now.getTime() + sale.plan.durationDays * 86400000),
               status: "ACTIVE",
+              cardSerial: genCardSerial(),
               usageLimit: sale.plan.usageLimit,
             },
           })
@@ -219,15 +221,15 @@ export async function POST(req: NextRequest) {
 
     // return (AC-10 · OPEN-07)
     const result = await db.$transaction(async (tx) => {
-      const sale = await tx.saleCustomer.findUnique({ where: { id: data.saleId }, include: { commission: true, membership: true } })
+      const sale = await tx.saleCustomer.findUnique({ where: { id: data.saleId }, include: { saleCommission: true, membership: true } })
       if (!sale) throw new Error("NOT_FOUND")
       if (sale.status !== "FINALIZED") throw new Error("NOT_RETURNABLE")
 
       // اثر پورسانت: اگر تسویه نشده → لغو؛ اگر پرداخت‌شده → نیاز به اصلاح دستی مدیر ارشد
-      if (sale.commission) {
-        if (sale.commission.status === "PAID") throw new Error("COMMISSION_ALREADY_PAID")
-        if (sale.commission.status !== "CANCELLED") {
-          await tx.commission.update({ where: { id: sale.commission.id }, data: { status: "CANCELLED", rejectReason: `مرجوعی فروش: ${data.reason}` } })
+      if (sale.saleCommission) {
+        if (sale.saleCommission.status === "PAID") throw new Error("COMMISSION_ALREADY_PAID")
+        if (sale.saleCommission.status !== "CANCELLED") {
+          await tx.commission.update({ where: { id: sale.saleCommission.id }, data: { status: "CANCELLED", rejectReason: `مرجوعی فروش: ${data.reason}` } })
         }
       }
       // اثر عضویت: لغو (BR-07)

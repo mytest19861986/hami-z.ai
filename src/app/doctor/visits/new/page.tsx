@@ -46,6 +46,7 @@ interface VisitResult {
 
 export default function NewVisitPage() {
   const [nationalCode, setNationalCode] = useState("")
+  const [mobile, setMobile] = useState("")
   const [result, setResult] = useState<EligibilityResult | null>(null)
   const [checking, setChecking] = useState(false)
   const [selectedMembership, setSelectedMembership] = useState("")
@@ -60,7 +61,10 @@ export default function NewVisitPage() {
     setSelectedMembership("")
     setDone(null)
     try {
-      const res = await api.post<EligibilityResult>("/api/v1/doctor/eligibility", { nationalCode })
+      const res = await api.post<EligibilityResult>("/api/v1/doctor/eligibility", {
+        ...(nationalCode ? { nationalCode } : {}),
+        ...(mobile ? { mobile } : {}),
+      })
       setResult(res)
     } catch (e) {
       toast({ title: "خطا", description: errMessage(e), variant: "destructive" })
@@ -110,7 +114,7 @@ export default function NewVisitPage() {
               </div>
             </div>
             <div className="mt-6 flex justify-center gap-3">
-              <Button onClick={() => { setDone(null); setResult(null); setNationalCode(""); setTotalAmount(""); setNote(""); setSelectedMembership("") }}>
+              <Button onClick={() => { setDone(null); setResult(null); setNationalCode(""); setMobile(""); setTotalAmount(""); setNote(""); setSelectedMembership("") }}>
                 ثبت ویزیت جدید
               </Button>
               <Button asChild variant="outline">
@@ -125,22 +129,34 @@ export default function NewVisitPage() {
 
   return (
     <div>
-      <PageHeader title="احراز شرایط و ثبت ویزیت" description="ابتدا کد ملی دارنده طرح را بررسی کنید، سپس ویزیت را ثبت نمایید (VISIT-002 · DOCTOR-DASH-004)." />
+      <PageHeader title="استعلام دارنده و ثبت ویزیت" description="دارنده طرح را با کد ملی یا شماره همراه استعلام کنید، سپس ویزیت را ثبت نمایید (SURF-DOCTOR · VISIT-002)." />
 
       <Card className="mb-5">
         <CardContent className="p-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
             <div className="flex-1 space-y-1.5">
               <label className="text-sm font-medium">کد ملی دارنده طرح</label>
               <div className="relative">
                 <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input dir="ltr" inputMode="numeric" maxLength={10} placeholder="۱۰ رقم" value={nationalCode} onChange={(e) => setNationalCode(e.target.value.replace(/\D/g, ""))} onKeyDown={(e) => e.key === "Enter" && nationalCode.length === 10 && check()} className="pr-9 text-left" />
+                <Input dir="ltr" inputMode="numeric" maxLength={10} placeholder="۱۰ رقم" value={nationalCode} onChange={(e) => setNationalCode(e.target.value.replace(/\D/g, ""))} onKeyDown={(e) => e.key === "Enter" && (nationalCode.length === 10 || mobile.length === 11) && check()} className="pr-9 text-left" />
               </div>
             </div>
-            <Button onClick={check} disabled={checking || nationalCode.length !== 10}>
-              {checking ? "در حال بررسی…" : "بررسی شرایط"}
+            <div className="flex-1 space-y-1.5">
+              <label className="text-sm font-medium">شماره همراه دارنده</label>
+              <div className="relative">
+                <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input dir="ltr" inputMode="numeric" maxLength={11} placeholder="۰۹…" value={mobile} onChange={(e) => setMobile(e.target.value.replace(/\D/g, ""))} onKeyDown={(e) => e.key === "Enter" && (nationalCode.length === 10 || mobile.length === 11) && check()} className="pr-9 text-left" />
+              </div>
+            </div>
+            <Button
+              onClick={check}
+              disabled={checking || (nationalCode.length !== 10 && mobile.length !== 11)}
+              title="حداقل یکی از فیلدها کافی است"
+            >
+              {checking ? "در حال استعلام…" : "استعلام شرایط"}
             </Button>
           </div>
+          <p className="mt-2 text-xs text-muted-foreground">یکی از دو فیلد کافی است؛ اگر هر دو را وارد کنید، ابتدا کد ملی بررسی می‌شود.</p>
         </CardContent>
       </Card>
 

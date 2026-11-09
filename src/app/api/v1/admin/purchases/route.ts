@@ -4,6 +4,7 @@ import { ok, fail, requirePermission, parseBody } from "@/lib/api"
 import { db } from "@/lib/db"
 import { audit, notify } from "@/lib/audit"
 import { commissionAmount } from "@/lib/format"
+import { genCardSerial } from "@/lib/codes"
 
 // بررسی و تأیید خریدها (PAY-005/009/010 · ADMIN-013 · AC-05/06)
 export async function GET(req: NextRequest) {
@@ -106,6 +107,7 @@ export async function POST(req: NextRequest) {
             startDate: now,
             endDate: new Date(now.getTime() + purchase.plan.durationDays * 86400000),
             status: "ACTIVE",
+            cardSerial: genCardSerial(),
             usageLimit: purchase.plan.usageLimit,
           },
         })

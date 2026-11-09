@@ -4,10 +4,20 @@ import { ok, fail, requireUser, parseBody } from "@/lib/api"
 import { db } from "@/lib/db"
 import { toEnDigits } from "@/lib/validators"
 
-// احراز شرایط مراجعه دارنده طرح (DOCTOR-DASH-004 · VISIT-002)
-const schema = z.object({
-  nationalCode: z.string().transform((s) => toEnDigits(s).trim()).refine((s) => /^\d{10}$/.test(s), "کد ملی ۱۰ رقمی دارنده را وارد کنید."),
-})
+// احراز شرایط مراجعه دارنده طرح (DOCTOR-DASH-004 · VISIT-002 · SURF-DOCTOR)
+// استعلام با کد ملی و/یا شماره همراه دارنده — حداقل یکی الزامی است
+const schema = z
+  .object({
+    nationalCode: z
+      .union([z.string(), z.undefined()])
+      .transform((s) => (s ? toEnDigits(s).trim() : ""))
+      .refine((s) => s === "" || /^\d{10}$/.test(s), "کد ملی ۱۰ رقمی دارنده را وارد کنید."),
+    mobile: z
+      .union([z.string(), z.undefined()])
+      .transform((s) => (s ? toEnDigits(s).trim() : ""))
+      .refine((s) => s === "" || /^09\d{9}$/.test(s), "شماره همراه باید ۱۱ رقم و با ۰۹ شروع شود."),
+  })
+  .refine((d) => d.nationalCode || d.mobile, "کد ملی یا شماره همراه دارنده را وارد کنید.")
 
 export async function POST(req: NextRequest) {
   const auth = await requireUser()
@@ -19,22 +29,44 @@ export async function POST(req: NextRequest) {
     return fail("دسترسی ثبت ویزیت فقط برای پزشک تأییدشده فعال است.", 403)
   }
 
+  const lookupByNationalCode = (nc: string) =>
+    db.planHolder.findUnique({
+      where: { nationalCode: nc },
+      include: {
+        memberships: {
+          where: { status: "ACTIVE" },
+          include: { plan: { select: { id: true, title: true, discountPercent: true } } },
+        },
+      },
+    })
+
   const parsed = await parseBody(req, schema)
   if ("response" in parsed) return parsed.response
-  const { nationalCode } = parsed.data
+  const { nationalCode, mobile } = parsed.data
 
-  const holder = await db.planHolder.findUnique({
-    where: { nationalCode },
-    include: {
-      memberships: {
-        where: { status: "ACTIVE" },
-        include: { plan: { select: { id: true, title: true, discountPercent: true } } },
+  // اولویت استعلام: کد ملی دقیق، سپس موبایل دارنده (ممکن است چند دارنده باشد)
+  type HolderWithMemberships = NonNullable<Awaited<ReturnType<typeof lookupByNationalCode>>>
+  let holder: HolderWithMemberships | null = null
+  if (nationalCode) {
+    holder = await lookupByNationalCode(nationalCode)
+  }
+  if (!holder && mobile) {
+    const holders = await db.planHolder.findMany({
+      where: { mobile },
+      orderBy: { createdAt: "asc" },
+      take: 5,
+      include: {
+        memberships: {
+          where: { status: "ACTIVE" },
+          include: { plan: { select: { id: true, title: true, discountPercent: true } } },
+        },
       },
-    },
-  })
+    })
+    holder = holders.find((h) => h.memberships.length > 0) ?? holders[0] ?? null
+  }
 
   if (!holder) {
-    return ok({ found: false, message: "دارنده‌ای با این کد ملی یافت نشد." })
+    return ok({ found: false, message: "دارنده‌ای با این مشخصات یافت نشد." })
   }
 
   const now = new Date()

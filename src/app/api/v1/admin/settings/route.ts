@@ -19,6 +19,7 @@ export async function GET() {
     title: def.title,
     description: def.description ?? null,
     superOnly: !!def.superOnly,
+    group: def.group,
   }))
   return ok({ settings, isSuperAdmin: auth.user.roles.includes("SUPER_ADMIN") })
 }
@@ -41,6 +42,31 @@ export async function PUT(req: NextRequest) {
   if (key === "MIN_SETTLEMENT_AMOUNT") {
     const n = parseInt(toEnDigits(value), 10)
     if (isNaN(n) || n < 10000) return fail("حداقل مبلغ تسویه باید عددی و حداقل ۱۰٬۰۰۰ تومان باشد.", 422)
+  }
+
+  // مقادیر مجاز تنظیم‌های شمارشی (OPEN-01..18)
+  const enums: Record<string, string[]> = {
+    DISCOUNT_PRECEDENCE: ["DOCTOR", "PLAN"],
+    SALE_FINALIZATION_STAGE: ["FINALIZED", "PAYMENT_REGISTERED", "DELIVERED"],
+    COMMISSION_STACKING: ["NOT_ALLOWED", "ALLOWED"],
+    REFUND_RESTORE_POLICY: ["IMMEDIATE", "MANUAL"],
+    COMMISSION_ROUNDING: ["FLOOR", "CEIL", "NEAREST"],
+    MULTIPLE_ACTIVE_PLANS: ["ALLOWED", "NOT_ALLOWED"],
+    PLAN_ACTIVATION_WITHOUT_PAYMENT: ["SUPER_ADMIN", "AGENT_WITH_APPROVAL"],
+    REFERRER_VS_AGENT_SCOPE: ["SEPARATE_ROLES", "SAME_AS_AGENT"],
+    MANUAL_PAYMENT_REGISTRAR: ["SUPER_ADMIN", "ADMIN_AND_SUPER"],
+    IDENTITY_CONFLICT_POLICY: ["REJECT_DUPLICATE", "MERGE_BY_MOBILE"],
+    SMS_STATUS: ["NOT_CONNECTED", "CONNECTED"],
+    PAYMENT_STATUS: ["NOT_CONNECTED", "CONNECTED"],
+    MEDICAL_RECORDS_SCOPE: ["NONE", "VISIT_NOTES_ONLY", "FULL"],
+  }
+  const allowed = enums[key]
+  if (allowed && !allowed.includes(toEnDigits(value).toUpperCase())) {
+    return fail(`مقدار باید یکی از این موارد باشد: ${allowed.join("، ")}`, 422)
+  }
+  if (["MEDICAL_DATA_RETENTION_DAYS", "BACKUP_RETENTION_DAYS", "CONCURRENT_USER_TARGET"].includes(key)) {
+    const n = parseInt(toEnDigits(value), 10)
+    if (isNaN(n) || n <= 0) return fail("این تنظیم باید عدد صحیح مثبت باشد.", 422)
   }
 
   await db.setting.upsert({
