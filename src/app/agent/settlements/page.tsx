@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { PageHeader } from "@/components/shared/page-header"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { EmptyState } from "@/components/shared/empty-state"
+import { BankInfoForm, type BankInfo } from "@/components/shared/bank-info-form"
 import { api, errMessage } from "@/lib/client"
 import { toast } from "@/hooks/use-toast"
 import { formatToman } from "@/lib/format"
@@ -46,7 +47,7 @@ export default function AgentSettlementsPage() {
   function load() {
     api.get<Settlement[]>("/api/v1/agent/settlements").then(setItems).catch(() => setItems([]))
     api.get<WalletSummary>("/api/v1/agent/wallet").then(setWallet).catch(() => {})
-    api.get<{ profile: { cardNumber: string | null; sheba: string | null; bankAccountName: string | null } | null }>("/api/v1/user/profile")
+    api.get<{ profile: BankInfo | null }>("/api/v1/user/profile")
       .then((d) => setBankInfo(d.profile))
       .catch(() => {})
   }
@@ -99,19 +100,22 @@ export default function AgentSettlementsPage() {
             </h2>
 
             {!bankComplete ? (
-              <div className="mt-4 flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-xs leading-5 text-amber-800">
-                <Info className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>
-                  برای درخواست تسویه، تکمیل شماره کارت، شبا و نام صاحب حساب در
-                  <Link href="/user/profile" className="mx-1 font-semibold underline">پروفایل</Link>
-                  الزامی است (SETTLE-002).
-                </span>
+              <div className="mt-4 space-y-3">
+                <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-xs leading-5 text-amber-800">
+                  <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>
+                    برای درخواست تسویه، تکمیل شماره کارت ۱۶ رقمی، شبا ۲۴ رقمی و نام صاحب حساب الزامی است
+                    (SETTLE-002) — همین‌جا وارد کنید:
+                  </span>
+                </div>
+                <BankInfoForm initial={bankInfo} showSavedBanner={false} onSaved={(info) => setBankInfo(info)} />
               </div>
             ) : (
               <div className="mt-4 space-y-1 rounded-lg bg-muted/60 p-3 text-xs text-muted-foreground">
                 <div>کارت: <span dir="ltr" className="font-mono">{maskCard(bankInfo!.cardNumber)}</span></div>
                 <div>شبا: <span dir="ltr" className="font-mono">{maskSheba(bankInfo!.sheba)}</span></div>
                 <div>صاحب حساب: {bankInfo!.bankAccountName}</div>
+                <Link href="/agent/bank" className="font-semibold text-primary underline">ویرایش اطلاعات بانکی</Link>
               </div>
             )}
 

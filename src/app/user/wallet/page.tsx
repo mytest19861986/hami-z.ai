@@ -14,7 +14,9 @@ import { api, errMessage } from "@/lib/client"
 import { formatToman } from "@/lib/format"
 import { faDateTime } from "@/lib/jalali"
 import { label } from "@/constants/labels"
-import { Wallet, Clock, Lock, Coins, Landmark, AlertCircle } from "lucide-react"
+import { BankInfoForm, type BankInfo } from "@/components/shared/bank-info-form"
+import { maskCard, maskSheba } from "@/lib/validators"
+import { Wallet, Clock, Lock, Coins, Landmark, AlertCircle, CheckCircle2 } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 
 interface WalletData {
@@ -60,6 +62,7 @@ interface SettlementItem {
 }
 
 interface ProfileRef {
+  profile: BankInfo | null
   referral?: { bankInfoComplete: boolean } | null
 }
 
@@ -68,6 +71,7 @@ export default function UserWalletPage() {
   const [commissions, setCommissions] = useState<CommissionItem[] | null>(null)
   const [settlements, setSettlements] = useState<SettlementItem[] | null>(null)
   const [profileRef, setProfileRef] = useState<ProfileRef | null>(null)
+  const [bankInfo, setBankInfo] = useState<BankInfo | null>(null)
   const [amount, setAmount] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [cancelling, setCancelling] = useState<string | null>(null)
@@ -79,7 +83,12 @@ export default function UserWalletPage() {
       .then((r) => setCommissions(r.items ?? []))
       .catch(() => setCommissions([]))
     api.get<SettlementItem[]>("/api/v1/agent/settlements").then(setSettlements).catch(() => setSettlements([]))
-    api.get<ProfileRef>("/api/v1/user/profile").then(setProfileRef).catch(() => setProfileRef(null))
+    api.get<ProfileRef>("/api/v1/user/profile")
+      .then((d) => {
+        setProfileRef(d)
+        setBankInfo(d.profile)
+      })
+      .catch(() => setProfileRef(null))
   }
 
   useEffect(() => {
@@ -143,23 +152,43 @@ export default function UserWalletPage() {
       />
 
       {!bankComplete ? (
-        <Card className="mb-5 border-amber-300 bg-amber-50">
-          <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
+        <div className="mb-5">
+          <Card className="mb-3 border-amber-300 bg-amber-50">
+            <CardContent className="flex items-start gap-3 p-5">
               <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
               <div>
                 <p className="text-sm font-bold text-amber-900">اطلاعات بانکی شما کامل نیست</p>
                 <p className="mt-1 text-xs leading-5 text-amber-800">
-                  تا زمان تکمیل شماره کارت ۱۶ رقمی و شبا ۲۴ رقمی در پروفایل، پورسانت‌های شما توسط مدیر تأیید و به کیف پول واریز نمی‌شود.
+                  تا زمان تکمیل شماره کارت ۱۶ رقمی و شبا ۲۴ رقمی، پورسانت‌های شما توسط مدیر تأیید و به کیف پول واریز نمی‌شود. فرم زیر را تکمیل کنید:
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+          <div className="max-w-2xl">
+            <BankInfoForm initial={bankInfo} showSavedBanner={false} onSaved={(info) => { setBankInfo(info); loadAll() }} />
+          </div>
+        </div>
+      ) : (
+        <Card className="mb-5 border-emerald-200 bg-emerald-50">
+          <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
+              <div>
+                <p className="text-sm font-bold text-emerald-900">اطلاعات بانکی شما ثبت شده است</p>
+                <p className="mt-1 text-xs leading-5 text-emerald-800">
+                  کارت <span dir="ltr" className="font-mono">{maskCard(bankInfo?.cardNumber)}</span> · شبا{" "}
+                  <span dir="ltr" className="font-mono">{maskSheba(bankInfo?.sheba)}</span>
+                  {bankInfo?.bankAccountName ? ` · ${bankInfo.bankAccountName}` : ""}
+                  {!bankInfo?.bankAccountName ? " — برای درخواست تسویه، نام صاحب حساب را در پروفایل تکمیل کنید." : ""}
                 </p>
               </div>
             </div>
-            <Button asChild variant="outline" className="shrink-0 border-amber-400 bg-white hover:bg-amber-100">
-              <Link href="/user/profile">تکمیل اطلاعات بانکی</Link>
+            <Button asChild variant="outline" className="shrink-0 border-emerald-300 bg-white hover:bg-emerald-100">
+              <Link href="/user/profile">ویرایش</Link>
             </Button>
           </CardContent>
         </Card>
-      ) : null}
+      )}
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard title="مانده قابل برداشت" value={formatToman(wallet.withdrawableBalance)} icon={<Wallet className="h-4 w-4" />} />
