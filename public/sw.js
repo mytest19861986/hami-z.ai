@@ -6,10 +6,12 @@
      • سایر استاتیک‌های هم‌مبدأ: stale-while-revalidate
      • /api/*: فقط شبکه (بدون کش — داده‌های حساس مالی)
 */
-const VERSION = "hk-v1";
+const VERSION = "hk-v2";
 const STATIC_CACHE = `hk-static-${VERSION}`;
 const RUNTIME_CACHE = `hk-runtime-${VERSION}`;
 const OFFLINE_URL = "/offline";
+// میزبانی محلی (سرور توسعه) → چانک‌ها پایدار نیستند و باید بازاعتبارسنجی شوند
+const IS_LOCALHOST = ["localhost", "127.0.0.1"].includes(self.location.hostname);
 
 const PRECACHE_URLS = [
   OFFLINE_URL,
@@ -96,21 +98,24 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // ۲) استاتیک‌های hash شدهٔ Next: کش-اول
+  // ۲) استاتیک‌های hash شدهٔ Next: کش-اول در پروداکشن؛ در توسعه stale-while-revalidate
   if (url.pathname.startsWith("/_next/static/")) {
     event.respondWith(
       (async () => {
-        const cached = await caches.match(request);
+        const cache = await caches.open(STATIC_CACHE);
+        const cached = await cache.match(request);
+        const refresh = fetch(request)
+          .then((fresh) => {
+            if (fresh.ok) cache.put(request, fresh.clone()).catch(() => {});
+            return fresh;
+          })
+          .catch(() => cached);
+        if (cached && IS_LOCALHOST) return cached; // محلی: از کش، بازاعتبارسنجی در پس‌زمینه
         if (cached) return cached;
         try {
-          const fresh = await fetch(request);
-          if (fresh.ok) {
-            const cache = await caches.open(STATIC_CACHE);
-            cache.put(request, fresh.clone()).catch(() => {});
-          }
-          return fresh;
+          return await refresh;
         } catch {
-          return cached || Response.error();
+          return Response.error();
         }
       })()
     );

@@ -44,7 +44,7 @@ async function main() {
   // ── محتوای صفحات عمومی ──
   const pages: Array<{ pageKey: string; title: string; body: string }> = [
     { pageKey: "about", title: "درباره حامی‌کارت", body: "حامی‌کارت بستری برای عرضه و مدیریت طرح‌های تخفیف خدمات درمانی است.\n\nما با شبکه‌ای از پزشکان طرف همکاری در سراسر ایران، امکان استفاده از خدمات درمانی با تخفیف را برای اعضای حامی‌کارت فراهم می‌کنیم. عضویت در حامی‌کارت به شما امکان می‌دهد طرح مناسب خود را تهیه کنید، پزشکان طرف قرارداد را پیدا کنید و در لحظه مراجعه از تخفیف بهره‌مند شوید.\n\nمأموریت ما: شفافیت، اعتماد و دسترسی ساده به خدمات درمانی مقرون‌به‌صرفه." },
-    { pageKey: "contact", title: "تماس با ما", body: "برای ارتباط با تیم پشتیبانی حامی‌کارت از راه‌های زیر استفاده کنید:\n\nتلفن پشتیبانی: ۰۲۱-۹۱۰۰۰۰۰۰ (شنبه تا پنجشنبه، ۹ تا ۱۸)\nایمیل: info@hamikart.ir\nنشانی: تهران، خیابان نمونه، پلاک ۱۲۳\n\nهمچنین می‌توانید از فرم «ثبت درخواست پشتیبانی» در پنل کاربری خود استفاده کنید." },
+    { pageKey: "contact", title: "تماس با ما", body: "برای ارتباط با تیم پشتیبانی حامی‌کارت از راه‌های زیر استفاده کنید:\n\nتلفن پشتیبانی: ۰۱۱-۳۳۳۳۴۴۴۴ (شنبه تا پنجشنبه، ۹ تا ۱۸)\nایمیل: info@hamikart.ir\nنشانی: مازندران، ساری، خیابان ۱۸ دی، پلاک ۱۲۳\n\nهمچنین می‌توانید از فرم «ثبت درخواست پشتیبانی» در پنل کاربری خود استفاده کنید." },
     { pageKey: "faq", title: "پرسش‌های متداول", body: "چگونه عضو حامی‌کارت شوم؟\nبا شماره موبایل خود ثبت‌نام کنید، کد تأیید را وارد کنید و طرح دلخواه را تهیه کنید.\n\nآیا خریدار و دارنده کارت باید یک نفر باشند؟\nخیر؛ می‌توانید طرح را برای یک دارنده مشخص (مثلاً یکی از اعضای خانواده) تهیه کنید.\n\nتخفیف چگونه اعمال می‌شود؟\nدر زمان مراجعه، پزشک طرف قرارداد ویزیت را ثبت می‌کند و تخفیف طبق درصد طرح (یا درصد اختصاصی پزشک) محاسبه و نمایش داده می‌شود.\n\nپورسانت تسویه چه زمانی انجام می‌شود؟\nپورسانت‌های تأییدشده قابل برداشت هستند. تسویه به‌صورت ثبت درخواست و پرداخت خارج از سامانه انجام می‌شود.\n\nاگر طرحم منقضه شود چه می‌شود؟\nطرح منقضی قابل استفاده نیست؛ می‌توانید طرح جدیدی تهیه یا تمدید کنید." },
     { pageKey: "terms", title: "قوانین و شرایط", body: "۱. عضویت در حامی‌کارت با تأیید شماره موبایل معتبر انجام می‌شود و هر شخص با یک شماره یک حساب دارد.\n۲. کارت حامی‌کارت شخصی است و استفاده از آن برای اشخاص غیر مجاز نیست.\n۳. تعداد استفاده مجاز هر طرح طبق مشخصات همان طرح است و پس از اتمام سهمیه، طرح قابل استفاده نیست.\n۴. حامی‌کارت سرویس بیمه نیست و جایگزین بیمه درمانی نیست.\n۵. پرداخت پورسانت و تسویه‌ها پس از تأیید مدیریتی و طبق قواعد اعلام‌شده انجام می‌شود.\n۶. ثبت ویزیت و تخفیف صرفاً توسط پزشکان طرف قرارداد معتبر است." },
     { pageKey: "privacy", title: "حریم خصوصی", body: "حامی‌کارت متعهد است:\n\nاطلاعات هویتی و بانکی شما فقط در حد لازم و برای ارائه سرویس نگهداری می‌شود.\nاطلاعات بانکی فقط برای فرایند تسویه پورسانت استفاده می‌شود و در صفحات عمومی نمایش داده نمی‌شود.\nجزئیات درمانی فقط در حد ثبت ویزیت و برای افراد مجاز (خود بیمار و پزشک معالج) قابل مشاهده است.\nاطلاعات شما بدون حکم قانونی در اختیار اشخاص ثالث قرار نمی‌گیرد.\nخروج از حساب، دسترسی به اطلاعات خصوصی را از طریق مرورگر حذف می‌کند." },
@@ -76,7 +76,7 @@ async function main() {
         passwordHash: hashPassword("Hami@Admin123"),
         status: "ACTIVE",
         mobileVerifiedAt: new Date(),
-        profile: { create: { firstName: "مدیر", lastName: "ارشد حامی‌کارت", province: "تهران", city: "تهران" } },
+        profile: { create: { firstName: "مدیر", lastName: "ارشد حامی‌کارت", province: "مازندران", city: "ساری" } },
       },
     })
   }
@@ -92,16 +92,16 @@ async function main() {
 
   // ── پزشکان نمونه برای دایرکتوری عمومی (داده نمایشی — SEC-004) ──
   const doctorsData = [
-    { mobile: "09121111101", firstName: "آرش", lastName: "کریمی", code: "۱۲۳۴۵".replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))), specialty: "قلب و عروق", clinic: "کلینیک قلب آرش", province: "تهران", city: "تهران", discount: 25 },
-    { mobile: "09121111102", firstName: "مریم", lastName: "احمدی", code: "23456", specialty: "پوست و مو", clinic: "درمانگاه پوست رز", province: "تهران", city: "تهران", discount: null },
-    { mobile: "09121111103", firstName: "حسین", lastName: "رستمی", code: "34567", specialty: "ارتوپدی", clinic: "مطب ارتوپدی رستمی", province: "اصفهان", city: "اصفهان", discount: 20 },
-    { mobile: "09121111104", firstName: "زهرا", lastName: "موسوی", code: "45678", specialty: "اطفال", clinic: "مطب اطفال مهر", province: "فارس", city: "شیراز", discount: null },
-    { mobile: "09121111105", firstName: "رضا", lastName: "نجفی", code: "56789", specialty: "داخلی", clinic: "کلینیک داخلی نگین", province: "خراسان رضوی", city: "مشهد", discount: 22 },
-    { mobile: "09121111106", firstName: "سارا", lastName: "قاسمی", code: "67890", specialty: "زنان و زایمان", clinic: "مطب زنان سلامت", province: "آذربایجان شرقی", city: "تبریز", discount: null },
-    { mobile: "09121111107", firstName: "امیر", lastName: "شریفی", code: "78901", specialty: "دندانپزشکی", clinic: "کلینیک دندانپزشکی لبخند", province: "گیلان", city: "رشت", discount: 15 },
-    { mobile: "09121111108", firstName: "نگار", lastName: "عباسی", code: "89012", specialty: "چشم‌پزشکی", clinic: "مطب چشم بینش", province: "البرز", city: "کرج", discount: null },
-    { mobile: "09121111109", firstName: "بهنام", lastName: "کاظمی", code: "90123", specialty: "گوش، حلق و بینی", clinic: "مطب ENT کاظمی", province: "خوزستان", city: "اهواز", discount: null },
-    { mobile: "09121111110", firstName: "لیلا", lastName: "حسینی", code: "11223", specialty: "تغذیه و رژیم‌درمانی", clinic: "کلینیک تغذیه سبز", province: "یزد", city: "یزد", discount: 18 },
+    { mobile: "09121111101", firstName: "آرش", lastName: "کریمی", code: "۱۲۳۴۵".replace(/[۰-۹]/g, (d) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))), specialty: "قلب و عروق", clinic: "کلینیک قلب آرش", province: "مازندران", city: "ساری", discount: 25 },
+    { mobile: "09121111102", firstName: "مریم", lastName: "احمدی", code: "23456", specialty: "پوست و مو", clinic: "درمانگاه پوست رز", province: "مازندران", city: "ساری", discount: null },
+    { mobile: "09121111103", firstName: "حسین", lastName: "رستمی", code: "34567", specialty: "ارتوپدی", clinic: "مطب ارتوپدی رستمی", province: "مازندران", city: "ساری", discount: 20 },
+    { mobile: "09121111104", firstName: "زهرا", lastName: "موسوی", code: "45678", specialty: "اطفال", clinic: "مطب اطفال مهر", province: "مازندران", city: "ساری", discount: null },
+    { mobile: "09121111105", firstName: "رضا", lastName: "نجفی", code: "56789", specialty: "داخلی", clinic: "کلینیک داخلی نگین", province: "مازندران", city: "ساری", discount: 22 },
+    { mobile: "09121111106", firstName: "سارا", lastName: "قاسمی", code: "67890", specialty: "زنان و زایمان", clinic: "مطب زنان سلامت", province: "مازندران", city: "ساری", discount: null },
+    { mobile: "09121111107", firstName: "امیر", lastName: "شریفی", code: "78901", specialty: "دندانپزشکی", clinic: "کلینیک دندانپزشکی لبخند", province: "مازندران", city: "ساری", discount: 15 },
+    { mobile: "09121111108", firstName: "نگار", lastName: "عباسی", code: "89012", specialty: "چشم‌پزشکی", clinic: "مطب چشم بینش", province: "مازندران", city: "ساری", discount: null },
+    { mobile: "09121111109", firstName: "بهنام", lastName: "کاظمی", code: "90123", specialty: "گوش، حلق و بینی", clinic: "مطب ENT کاظمی", province: "مازندران", city: "ساری", discount: null },
+    { mobile: "09121111110", firstName: "لیلا", lastName: "حسینی", code: "11223", specialty: "تغذیه و رژیم‌درمانی", clinic: "کلینیک تغذیه سبز", province: "مازندران", city: "ساری", discount: 18 },
   ]
 
   const userRole = await db.role.findUnique({ where: { name: "USER" } })
@@ -132,7 +132,7 @@ async function main() {
           clinicAddress: `${d.city}، خیابان اصلی، پلاک نمونه`,
           province: d.province,
           city: d.city,
-          clinicPhone: "02112345678",
+          clinicPhone: "01133334444",
           bio: `پزشک نمونه ${d.specialty} با سابقه همکاری با حامی‌کارت. (داده نمایشی)`,
           discountPercent: d.discount,
           status: "APPROVED",
@@ -158,7 +158,7 @@ async function main() {
           mobile: du.mobile,
           status: "ACTIVE",
           mobileVerifiedAt: new Date(),
-          profile: { create: { firstName: du.firstName, lastName: du.lastName, province: "تهران", city: "تهران" } },
+          profile: { create: { firstName: du.firstName, lastName: du.lastName, province: "مازندران", city: "ساری" } },
         },
       })
     }
@@ -174,8 +174,8 @@ async function main() {
             userId: u.id,
             businessName: "نمایندگی نمونه سلامت",
             description: "نماینده فروش نمایشی حامی‌کارت",
-            province: "تهران",
-            city: "تهران",
+            province: "مازندران",
+            city: "ساری",
             phone: du.mobile,
             status: "APPROVED",
             reviewedAt: new Date(),
@@ -199,8 +199,8 @@ async function main() {
             medicalCouncilCode: "99901",
             specialty: "داخلی",
             clinicName: "مطب در حال بررسی",
-            province: "تهران",
-            city: "تهران",
+            province: "مازندران",
+            city: "ساری",
             status: "PENDING",
           },
         })

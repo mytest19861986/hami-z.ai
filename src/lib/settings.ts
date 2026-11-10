@@ -152,7 +152,7 @@ export const SETTING_DEFAULTS: Record<
     group: "عملیات و زیرساخت",
   },
   SITE_TAGLINE: { value: "تخفیف واقعی خدمات درمانی، در سراسر ایران", title: "شعار صفحه اصلی", group: "عملیات و زیرساخت" },
-  CONTACT_PHONE: { value: "۰۲۱-۹۱۰۰۰۰۰۰", title: "تلفن تماس", group: "عملیات و زیرساخت" },
+  CONTACT_PHONE: { value: "۰۱۱-۳۳۳۳۴۴۴۴", title: "تلفن تماس", group: "عملیات و زیرساخت" },
   CONTACT_EMAIL: { value: "info@hamikart.ir", title: "ایمیل تماس", group: "عملیات و زیرساخت" },
 }
 

@@ -47,7 +47,7 @@ export function PublicHeader() {
           <span>پشتیبانی شنبه تا پنجشنبه، ۹ تا ۱۸</span>
           <span className="flex items-center gap-1.5" dir="ltr">
             <PhoneCall className="h-3 w-3" />
-            ۰۲۱-۹۱۰۰۰۰۰۰
+            ۰۱۱-۳۳۳۳۴۴۴۴
           </span>
         </div>
       </div>
@@ -191,8 +191,9 @@ export function PublicFooter() {
           <div>
             <h4 className="mb-4 text-xs font-bold uppercase tracking-wider text-gold">تماس</h4>
             <ul className="space-y-2.5 text-sm text-sidebar-foreground/85">
-              <li dir="ltr" className="text-right">۰۲۱-۹۱۰۰۰۰۰۰</li>
+              <li dir="ltr" className="text-right">۰۱۱-۳۳۳۳۴۴۴۴</li>
               <li>info@hamikart.ir</li>
+              <li>مازندران، ساری، خیابان ۱۸ دی، پلاک ۱۲۳</li>
               <li>شنبه تا پنجشنبه، ۹ تا ۱۸</li>
             </ul>
           </div>
