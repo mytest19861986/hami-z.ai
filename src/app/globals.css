@@ -193,3 +193,26 @@
     background: transparent;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   نوار شناور نصب PWA — ورود نرم از پایین صفحه
+   ───────────────────────────────────────────────────────────── */
+@keyframes hk-banner-in {
+  from {
+    transform: translateY(115%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.hk-banner-in {
+  animation: hk-banner-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hk-banner-in {
+    animation-duration: 0.01s;
+  }
+}

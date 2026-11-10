@@ -1,0 +1,61 @@
+{
+  "id": "/",
+  "name": "حامی‌کارت | سامانه تخفیف و خدمات سلامت",
+  "short_name": "حامی‌کارت",
+  "description": "سامانه عضویت، تخفیف خدمات درمانی، شبکه پزشکان و نمایندگان فروش حامی‌کارت",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "dir": "rtl",
+  "lang": "fa",
+  "theme_color": "#2a4494",
+  "background_color": "#f6f1e7",
+  "categories": ["health", "medical", "shopping"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "پزشکان طرف قرارداد",
+      "short_name": "پزشکان",
+      "url": "/doctors",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "طرح‌های عضویت",
+      "short_name": "طرح‌ها",
+      "url": "/plans",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "ورود به حساب",
+      "short_name": "ورود",
+      "url": "/auth/login",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

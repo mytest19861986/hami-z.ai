@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { ServiceWorkerRegister } from "@/components/pwa/register-sw";
+import { InstallBanner } from "@/components/pwa/install-banner";
 
 // فونت‌های میزبانی‌شده محلی — بدون وابستگی به CDN بیرونی (SEC/PRIV)
 const vazir = localFont({
@@ -34,11 +36,32 @@ export const metadata: Metadata = {
   description:
     "حامی‌کارت — سامانه عضویت، تخفیف خدمات درمانی، شبکه پزشکان و نمایندگان فروش. طرح مناسب خود را تهیه کنید و از شبکه پزشکان طرف همکاری در سراسر ایران با تخفیف استفاده کنید.",
   keywords: ["حامی‌کارت", "تخفیف پزشکی", "خدمات درمانی", "عضویت درمانی", "پزشکان طرف قرارداد"],
+  /* ── PWA ── */
+  manifest: "/manifest.json",
+  applicationName: "حامی‌کارت",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "حامی‌کارت",
+  },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  formatDetection: { telephone: false },
+  other: {
+    "mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-capable": "yes",
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
   themeColor: "#2a4494",
 };
 
@@ -52,6 +75,8 @@ export default function RootLayout({
       <body className="antialiased bg-background text-foreground font-sans">
         {children}
         <Toaster />
+        <ServiceWorkerRegister />
+        <InstallBanner />
       </body>
     </html>
   );
