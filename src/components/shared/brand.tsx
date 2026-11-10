@@ -1,35 +1,29 @@
 import { cn } from "@/lib/utils"
 
 /**
- * نشان برند حامی‌کارت — کاشی «شمسه» (ستارهٔ هشت‌پر) با خط نبض در میانه.
- * طراحی اختصاصی؛ جایگزین آیکون‌های عمومی می‌شود تا هویت مستقل داشته باشد.
+ * نشان برند حامی‌کارت — لوگوی اصلی برند (لوگوی اختصاصی کارفرما)
+ * روی کاشی سفید گردگوشه تا در هر زمینه‌ای (روشن/تیره) تضاد داشته باشد.
  */
 export function BrandMark({ size = 36, className }: { size?: number; className?: string }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 48 48"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={cn("shrink-0", className)}
+    <span
+      className={cn(
+        "relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-[26%] bg-white shadow-sm ring-1 ring-black/10",
+        className
+      )}
+      style={{ width: size, height: size }}
       aria-hidden="true"
     >
-      <rect width="48" height="48" rx="12" fill="#2a4494" />
-      <g stroke="#f6f1e7" strokeOpacity="0.78" strokeWidth="2">
-        <rect x="15.5" y="15.5" width="17" height="17" />
-        <rect x="15.5" y="15.5" width="17" height="17" transform="rotate(45 24 24)" />
-      </g>
-      <path
-        d="M12 24h6.2l2.6-6 4.4 12 3-6H36"
-        stroke="#d9942b"
-        strokeWidth="2.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/brand/logo.png"
+        alt=""
+        width={size}
+        height={size}
+        className="h-[88%] w-[88%] object-contain"
+        draggable={false}
       />
-      <circle cx="24" cy="24" r="2" fill="#d9942b" />
-    </svg>
+    </span>
   )
 }
 

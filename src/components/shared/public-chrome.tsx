@@ -8,7 +8,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/s
 import { Menu, LogIn, LayoutDashboard, PhoneCall } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/client"
-import { BrandLogo } from "@/components/shared/brand"
+import { BrandLogo, BrandMark } from "@/components/shared/brand"
 
 const NAV = [
   { href: "/", label: "خانه" },
@@ -149,22 +149,7 @@ export function PublicFooter() {
         <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div>
             <div className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gold text-sidebar">
-                <svg viewBox="0 0 48 48" width="22" height="22" fill="none" aria-hidden="true">
-                  <g stroke="currentColor" strokeOpacity="0.9" strokeWidth="1.8">
-                    <rect x="15.5" y="15.5" width="17" height="17" />
-                    <rect x="15.5" y="15.5" width="17" height="17" transform="rotate(45 24 24)" />
-                  </g>
-                  <path
-                    d="M12 24h6.2l2.6-6 4.4 12 3-6H36"
-                    stroke="currentColor"
-                    strokeWidth="2.4"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    fill="none"
-                  />
-                </svg>
-              </span>
+              <BrandMark size={36} />
               <span className="font-display text-lg font-bold">حامی‌کارت</span>
             </div>
             <p className="mt-4 max-w-xs text-sm leading-7 text-sidebar-foreground/80">

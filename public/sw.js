@@ -6,7 +6,7 @@
      • سایر استاتیک‌های هم‌مبدأ: stale-while-revalidate
      • /api/*: فقط شبکه (بدون کش — داده‌های حساس مالی)
 */
-const VERSION = "hk-v2";
+const VERSION = "hk-v3";
 const STATIC_CACHE = `hk-static-${VERSION}`;
 const RUNTIME_CACHE = `hk-runtime-${VERSION}`;
 const OFFLINE_URL = "/offline";
@@ -20,6 +20,7 @@ const PRECACHE_URLS = [
   "/icons/icon-512.png",
   "/icons/apple-touch-icon.png",
   "/logo.svg",
+  "/brand/logo.png",
 ];
 
 self.addEventListener("install", (event) => {
