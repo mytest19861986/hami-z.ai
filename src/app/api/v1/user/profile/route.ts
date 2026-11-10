@@ -3,7 +3,8 @@ import { z } from "zod"
 import { ok, fail, requireUser, parseBody } from "@/lib/api"
 import { db } from "@/lib/db"
 import { audit } from "@/lib/audit"
-import { nationalCodeSchema, shebaSchema, cardNumberSchema, toEnDigits } from "@/lib/validators"
+import { nationalCodeSchema, shebaSchema, cardNumberSchema, toEnDigits, isValidCardNumber, isValidSheba } from "@/lib/validators"
+import { ensureReferralCode } from "@/lib/referral"
 import { isValidProvinceCity } from "@/constants/geo"
 import { SPECIALTIES } from "@/constants/specialties"
 
@@ -27,14 +28,38 @@ export async function GET() {
   if ("response" in auth) return auth.response
   const user = await db.user.findUnique({
     where: { id: auth.user.id },
-    include: { profile: true, roles: { include: { role: true } } },
+    include: {
+      profile: true,
+      roles: { include: { role: true } },
+      referredBy: { select: { id: true, mobile: true, profile: { select: { firstName: true, lastName: true } } } },
+    },
   })
   if (!user) return fail("کاربر یافت نشد.", 404)
+
+  // REF-SYS: کد رفرال هر کاربر (کاربران قدیمی به‌صورت تنبل کد می‌گیرند)
+  const referralCode = await ensureReferralCode(user.id)
+  const refCount = await db.user.count({ where: { referredByUserId: user.id } })
+
+  const p = user.profile
   return ok({
     mobile: user.mobile,
     hasPassword: !!user.passwordHash,
     roles: user.roles.map((r) => ({ name: r.role.name, title: r.role.title })),
-    profile: user.profile,
+    profile: p,
+    referral: {
+      code: referralCode,
+      referredCount: refCount,
+      referredBy: user.referredBy
+        ? {
+            name:
+              `${user.referredBy.profile?.firstName ?? ""} ${user.referredBy.profile?.lastName ?? ""}`.trim() ||
+              user.referredBy.mobile,
+          }
+        : null,
+      // REF-SYS: دریافت پورسانت مستلزم کارت بانکی + شباست
+      bankInfoComplete:
+        !!p?.cardNumber && isValidCardNumber(p.cardNumber) && !!p?.sheba && isValidSheba(p.sheba),
+    },
   })
 }
 

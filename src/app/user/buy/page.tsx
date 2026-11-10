@@ -12,7 +12,7 @@ import { PageHeader } from "@/components/shared/page-header"
 import { api, errMessage } from "@/lib/client"
 import { toast } from "@/hooks/use-toast"
 import { formatToman } from "@/lib/format"
-import { BadgePercent, UserPlus, CheckCircle2, ShoppingBag, Info } from "lucide-react"
+import { BadgePercent, UserPlus, CheckCircle2, ShoppingBag, Info, IdCard, UserCheck } from "lucide-react"
 
 interface Plan {
   id: string
@@ -30,15 +30,20 @@ interface Holder {
   nationalCode: string | null
 }
 
+interface ProfileInfo {
+  profile: { nationalCode: string | null } | null
+  referral: { referredBy: { name: string } | null } | null
+}
+
 export default function BuyPage() {
   const searchParams = useSearchParams()
   const planIdParam = searchParams.get("planId")
 
   const [plans, setPlans] = useState<Plan[] | null>(null)
   const [holders, setHolders] = useState<Holder[] | null>(null)
+  const [profileInfo, setProfileInfo] = useState<ProfileInfo | null>(null)
   const [planId, setPlanId] = useState(planIdParam ?? "")
   const [holderId, setHolderId] = useState("")
-  const [referrerMobile, setReferrerMobile] = useState("")
   const [newHolderMode, setNewHolderMode] = useState(false)
   const [nh, setNh] = useState({ firstName: "", lastName: "", nationalCode: "", mobile: "" })
   const [loading, setLoading] = useState(false)
@@ -47,9 +52,13 @@ export default function BuyPage() {
   useEffect(() => {
     api.get<Plan[]>("/api/v1/public/plans").then(setPlans).catch(() => setPlans([]))
     api.get<Holder[]>("/api/v1/user/holders").then(setHolders).catch(() => setHolders([]))
+    api.get<ProfileInfo>("/api/v1/user/profile").then(setProfileInfo).catch(() => setProfileInfo(null))
   }, [])
 
   const selectedPlan = (plans ?? []).find((p) => p.id === planId)
+  // PAY/REF-SYS: کد ملی خریدار برای خرید طرح الزامی است
+  const hasNationalCode = !!(profileInfo && profileInfo.profile?.nationalCode && /^\d{10}$/.test(profileInfo.profile.nationalCode))
+  const referredByName = profileInfo?.referral?.referredBy?.name ?? null
 
   async function createHolderAndBuy() {
     setLoading(true)
@@ -63,7 +72,6 @@ export default function BuyPage() {
       const res = await api.post<{ purchase: { trackingCode: string }; message: string }>("/api/v1/user/purchases", {
         planId,
         holderId: hid,
-        referrerMobile: referrerMobile || "",
       })
       setDone({ trackingCode: res.purchase.trackingCode, message: res.message })
       toast({ title: "درخواست خرید ثبت شد", description: `کد پیگیری: ${res.purchase.trackingCode}` })
@@ -103,6 +111,26 @@ export default function BuyPage() {
   return (
     <div>
       <PageHeader title="تهیه طرح عضویت" description="خریدار و دارنده کارت می‌توانند اشخاص متفاوتی باشند (BR-06)." />
+
+      {/* PAY: الزام کد ملی خریدار */}
+      {profileInfo && !hasNationalCode ? (
+        <Card className="mb-5 border-amber-300 bg-amber-50">
+          <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <IdCard className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+              <div>
+                <p className="text-sm font-bold text-amber-900">تکمیل کد ملی برای خرید طرح الزامی است</p>
+                <p className="mt-1 text-xs leading-5 text-amber-800">
+                  کد ملی ۱۰ رقمی خود را در پروفایل ثبت کنید؛ بدون آن امکان ثبت درخواست خرید وجود ندارد.
+                </p>
+              </div>
+            </div>
+            <Button asChild variant="outline" className="shrink-0 border-amber-400 bg-white hover:bg-amber-100">
+              <Link href="/user/profile">تکمیل کد ملی در پروفایل</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
@@ -204,11 +232,19 @@ export default function BuyPage() {
           {/* معرف */}
           <Card>
             <CardContent className="p-6">
-              <h2 className="mb-1 font-semibold">۳. معرف (اختیاری)</h2>
-              <p className="mb-3 text-xs text-muted-foreground">
-                اگر فردی شما را به حامی‌کارت معرفی کرده و «همکار معرفی» است، شماره موبایل او را وارد کنید تا پورسانت معرفی برایش ثبت شود.
-              </p>
-              <Input dir="ltr" inputMode="tel" placeholder="09xxxxxxxxx" value={referrerMobile} onChange={(e) => setReferrerMobile(e.target.value)} className="max-w-xs text-left" />
+              <h2 className="mb-1 flex items-center gap-2 font-semibold">
+                <UserCheck className="h-5 w-5 text-primary" />
+                ۳. معرف (کد رفرال)
+              </h2>
+              {referredByName ? (
+                <p className="text-xs leading-6 text-muted-foreground">
+                  حساب شما هنگام ثبت‌نام با کد رفرال «{referredByName}» فعال شده است؛ پس از تأیید این خرید، پورسانت معرفی به‌طور خودکار برای او ثبت می‌شود.
+                </p>
+              ) : (
+                <p className="text-xs leading-6 text-muted-foreground">
+                  اگر هنگام ثبت‌نام کد معرفی وارد نکرده‌اید، این مرحله خالی می‌ماند. کد رفرال فقط هنگام ثبت‌نام از طریق لینک دعوت یا فیلد «کد معرف» در صفحه ورود قابل ثبت است و پورسانت معرفی پس از خرید شما برای معرف ثبت می‌شود.
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -239,10 +275,16 @@ export default function BuyPage() {
               <Button
                 className="mt-5 w-full"
                 size="lg"
-                disabled={loading || !planId || (!newHolderMode && !holderId) || (newHolderMode && (!nh.firstName || !nh.lastName || nh.nationalCode.length !== 10))}
+                disabled={
+                  loading ||
+                  !planId ||
+                  !hasNationalCode ||
+                  (!newHolderMode && !holderId) ||
+                  (newHolderMode && (!nh.firstName || !nh.lastName || nh.nationalCode.length !== 10))
+                }
                 onClick={createHolderAndBuy}
               >
-                {loading ? "در حال ثبت…" : "ثبت درخواست خرید"}
+                {loading ? "در حال ثبت…" : !hasNationalCode ? "ابتدا کد ملی را تکمیل کنید" : "ثبت درخواست خرید"}
               </Button>
             </CardContent>
           </Card>

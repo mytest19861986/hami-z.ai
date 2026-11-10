@@ -43,6 +43,10 @@ export async function PUT(req: NextRequest) {
     const n = parseInt(toEnDigits(value), 10)
     if (isNaN(n) || n < 10000) return fail("حداقل مبلغ تسویه باید عددی و حداقل ۱۰٬۰۰۰ تومان باشد.", 422)
   }
+  if (key === "USER_REFERRAL_COMMISSION_PERCENT") {
+    const n = parseInt(toEnDigits(value), 10)
+    if (isNaN(n) || n < 0 || n > 100) return fail("درصد پورسانت معرفی کاربر باید عددی بین ۰ تا ۱۰۰ باشد.", 422)
+  }
 
   // مقادیر مجاز تنظیم‌های شمارشی (OPEN-01..18)
   const enums: Record<string, string[]> = {

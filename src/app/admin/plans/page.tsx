@@ -186,11 +186,11 @@ export default function AdminPlansPage() {
                     <div className="mt-0.5 font-bold">{p.usageLimit === null ? "نامحدود" : toFaDigits(p.usageLimit)}</div>
                   </div>
                   <div className="rounded-lg bg-emerald-50 p-2 text-emerald-800">
-                    <div className="text-emerald-700">پورسانت فروش</div>
+                    <div className="text-emerald-700">پورسانت همکار فروش از این طرح</div>
                     <div className="mt-0.5 font-bold">{p.salesCommissionPercent}٪</div>
                   </div>
                   <div className="rounded-lg bg-violet-50 p-2 text-violet-800">
-                    <div className="text-violet-700">پورسانت معرفی</div>
+                    <div className="text-violet-700">پورسانت معرفی کاربر از این طرح (۰ = تنظیم سراسری)</div>
                     <div className="mt-0.5 font-bold">{p.referralCommissionPercent}٪</div>
                   </div>
                   <div className="rounded-lg bg-muted/60 p-2">
@@ -213,8 +213,8 @@ export default function AdminPlansPage() {
             <div className="space-y-1.5"><Label>مدت اعتبار (روز) *</Label><Input dir="ltr" inputMode="numeric" value={form.durationDays} onChange={(e) => setForm({ ...form, durationDays: e.target.value.replace(/\D/g, "") })} className="text-left" /></div>
             <div className="space-y-1.5"><Label>درصد تخفیف ویزیت (۱–۹۰) *</Label><Input dir="ltr" inputMode="numeric" value={form.discountPercent} onChange={(e) => setForm({ ...form, discountPercent: e.target.value.replace(/\D/g, "") })} className="text-left" /></div>
             <div className="space-y-1.5"><Label>سقف استفاده (خالی = نامحدود)</Label><Input dir="ltr" inputMode="numeric" value={form.usageLimit} onChange={(e) => setForm({ ...form, usageLimit: e.target.value.replace(/\D/g, "") })} className="text-left" /></div>
-            <div className="space-y-1.5"><Label>درصد پورسانت فروش (۰–۵۰)</Label><Input dir="ltr" inputMode="numeric" value={form.salesCommissionPercent} onChange={(e) => setForm({ ...form, salesCommissionPercent: e.target.value.replace(/\D/g, "") })} className="text-left" /></div>
-            <div className="space-y-1.5"><Label>درصد پورسانت معرفی (۰–۵۰)</Label><Input dir="ltr" inputMode="numeric" value={form.referralCommissionPercent} onChange={(e) => setForm({ ...form, referralCommissionPercent: e.target.value.replace(/\D/g, "") })} className="text-left" /></div>
+            <div className="space-y-1.5"><Label>پورسانت همکار فروش از این طرح (٪ — ۰ تا ۵۰)</Label><Input dir="ltr" inputMode="numeric" value={form.salesCommissionPercent} onChange={(e) => setForm({ ...form, salesCommissionPercent: e.target.value.replace(/\D/g, "") })} className="text-left" /></div>
+            <div className="space-y-1.5"><Label>پورسانت معرفی کاربر از این طرح (٪ — ۰ تا ۵۰، صفر یعنی از تنظیم سراسری پیروی کند)</Label><Input dir="ltr" inputMode="numeric" value={form.referralCommissionPercent} onChange={(e) => setForm({ ...form, referralCommissionPercent: e.target.value.replace(/\D/g, "") })} className="text-left" /></div>
             <div className="space-y-1.5"><Label>ترتیب نمایش</Label><Input dir="ltr" inputMode="numeric" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: e.target.value.replace(/\D/g, "") })} className="text-left" /></div>
             <div className="space-y-1.5 sm:col-span-2"><Label>توضیح</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
             <div className="space-y-1.5 sm:col-span-2"><Label>مزایا (هر خط یک مورد)</Label><Textarea rows={3} value={form.features} onChange={(e) => setForm({ ...form, features: e.target.value })} /></div>

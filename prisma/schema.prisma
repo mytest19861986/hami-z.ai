@@ -19,6 +19,12 @@ model User {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
+  // REF-SYS: کد رفرال یکتا برای هر کاربر + معرفِ کاربر هنگام ثبت‌نام
+  referralCode     String?  @unique
+  referredByUserId String?
+  referredBy       User?    @relation("UserReferrals", fields: [referredByUserId], references: [id])
+  referrals        User[]   @relation("UserReferrals")
+
   profile        UserProfile?
   roles          UserRole[]
   doctor         Doctor?

@@ -23,45 +23,21 @@ export function isValidMobile(raw: string): boolean {
   return /^09\d{9}$/.test(normalizeMobile(raw))
 }
 
-// کد ملی ۱۰ رقمی با رقم کنترل
+// کد ملی: دقیقاً ۱۰ رقم (طبق مصوبه کارفرما، بدون نیاز به اعتبارسنجی رقم کنترل)
 export function isValidNationalCode(raw: string): boolean {
-  const s = toEnDigits(raw).trim()
-  if (!/^\d{10}$/.test(s)) return false
-  if (/^(\d)\1{9}$/.test(s)) return false
-  const check = parseInt(s[9], 10)
-  let sum = 0
-  for (let i = 0; i < 9; i++) sum += parseInt(s[i], 10) * (10 - i)
-  const r = sum % 11
-  return r < 2 ? check === r : check === 11 - r
+  return /^\d{10}$/.test(toEnDigits(raw).trim())
 }
 
-// شماره شبا IR + 24 رقم با آزمون mod-97 (ISO 7064)
+// شبا: IR + ۲۴ رقم (طبق مصوبه کارفرما، بدون نیاز به آزمون رقم کنترل mod-97)
 export function isValidSheba(raw: string): boolean {
   let s = toEnDigits(raw).trim().toUpperCase().replace(/[\s-]/g, "")
   if (s.startsWith("IR")) s = s.slice(2)
-  if (!/^\d{24}$/.test(s)) return false
-  const rearranged = s + "1827" // "IR" → I=18, R=27
-  let remainder = 0
-  for (const ch of rearranged) {
-    remainder = (remainder * 10 + parseInt(ch, 10)) % 97
-  }
-  return remainder === 1
+  return /^\d{24}$/.test(s)
 }
 
-// شماره کارت ۱۶ رقمی با الگوریتم Luhn
+// شماره کارت بانکی: دقیقاً ۱۶ رقم (طبق مصوبه کارفرما، بدون نیاز به الگوریتم Luhn)
 export function isValidCardNumber(raw: string): boolean {
-  const s = toEnDigits(raw).replace(/[\s-]/g, "")
-  if (!/^\d{16}$/.test(s)) return false
-  let sum = 0
-  for (let i = 0; i < 16; i++) {
-    let d = parseInt(s[i], 10)
-    if (i % 2 === 0) {
-      d *= 2
-      if (d > 9) d -= 9
-    }
-    sum += d
-  }
-  return sum % 10 === 0
+  return /^\d{16}$/.test(toEnDigits(raw).replace(/[\s-]/g, ""))
 }
 
 export function normalizeSheba(raw: string): string {
@@ -95,17 +71,17 @@ export const otpSchema = z
 export const nationalCodeSchema = z
   .string()
   .transform((s) => toEnDigits(s).trim())
-  .refine((s) => s === "" || isValidNationalCode(s), "کد ملی معتبر نیست")
+  .refine((s) => s === "" || isValidNationalCode(s), "کد ملی باید دقیقاً ۱۰ رقم باشد")
 
 export const shebaSchema = z
   .string()
   .transform((s) => normalizeSheba(s))
-  .refine((s) => isValidSheba(s), "شماره شبا معتبر نیست (IR + ۲۴ رقم)")
+  .refine((s) => isValidSheba(s), "شماره شبا معتبر نیست (۲۴ رقم، با یا بدون IR)")
 
 export const cardNumberSchema = z
   .string()
   .transform((s) => toEnDigits(s).replace(/[\s-]/g, ""))
-  .refine((s) => isValidCardNumber(s), "شماره کارت ۱۶ رقمی معتبر نیست")
+  .refine((s) => isValidCardNumber(s), "شماره کارت باید دقیقاً ۱۶ رقم باشد")
 
 export const amountSchema = z
   .number({ message: "مبلغ نامعتبر است" })

@@ -24,6 +24,7 @@ interface CommissionRow {
   type: string
   beneficiary: string
   beneficiaryMobile: string
+  bankInfoComplete: boolean
   planTitle: string
   customer: string | null
   baseAmount: number
@@ -111,7 +112,7 @@ export default function AdminCommissionsPage() {
 
   return (
     <div>
-      <PageHeader title="پورسانت‌ها" description="تأیید/رد پورسانت فروش و معرفی — تأیید به معنی افزایش اتمیک مانده قابل برداشت است (ADMIN-017/018 · REF-006)" />
+      <PageHeader title="پورسانت‌ها" description="تأیید/رد پورسانت فروش و معرفی — برای تأیید و واریز، ذی‌نفع باید کارت بانکی و شبا را در پروفایل تکمیل کرده باشد (REF-SYS · ADMIN-017/018)" />
 
       {data ? (
         <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -170,6 +171,18 @@ export default function AdminCommissionsPage() {
                         <StatusBadge status={c.status} />
                         <span className="text-sm font-semibold">{c.beneficiary}</span>
                         <span className="text-xs text-muted-foreground" dir="ltr">{c.beneficiaryMobile}</span>
+                        {/* REF-SYS: نشانگر تکمیل اطلاعات بانکی برای دریافت پورسانت */}
+                        {c.status === "PENDING" ? (
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                              c.bankInfoComplete
+                                ? "bg-emerald-50 text-emerald-700"
+                                : "bg-amber-50 text-amber-800"
+                            }`}
+                          >
+                            {c.bankInfoComplete ? "اطلاعات بانکی کامل" : "بدون کارت/شبا — قابل واریز نیست"}
+                          </span>
+                        ) : null}
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground">
                         {c.planTitle}{c.customer ? ` · مشتری: ${c.customer}` : ""} · مبنا: {formatToman(c.baseAmount)} × {formatPercent(c.percent)} · {faDateTime(c.createdAt)}

@@ -5,15 +5,21 @@ import { ok, fail, parseBody, clientIp } from "@/lib/api"
 import { createSession } from "@/lib/auth"
 import { roleHome } from "@/constants/permissions"
 import { db } from "@/lib/db"
-import { mobileSchema, otpSchema } from "@/lib/validators"
+import { mobileSchema, otpSchema, toEnDigits } from "@/lib/validators"
+import { resolveReferrerByCode, assignUniqueReferralCode } from "@/lib/referral"
+import { genReferralCode } from "@/lib/codes"
 
 export async function POST(req: NextRequest) {
   const parsed = await parseBody(
     req,
-    z.object({ mobile: mobileSchema, code: otpSchema })
+    z.object({
+      mobile: mobileSchema,
+      code: otpSchema,
+      referralCode: z.string().trim().max(16).optional().or(z.literal("")), // REF-SYS: کد معرف هنگام ثبت‌نام
+    })
   )
   if ("response" in parsed) return parsed.response
-  const { mobile, code } = parsed.data
+  const { mobile, code, referralCode } = parsed.data
 
   const ip = clientIp(req)
   const ua = req.headers.get("user-agent")
@@ -39,11 +45,29 @@ export async function POST(req: NextRequest) {
   let user = await db.user.findUnique({ where: { mobile }, include: { roles: { include: { role: true } } } })
   let isNew = false
   if (!user) {
+    // REF-SYS: اعتبارسنجی کد معرف پیش از ساخت حساب — کد نامعتبر مانع ثبت‌نام نمی‌شود اما اتصال انجام نمی‌گیرد
+    let referredByConnect: { connect: { id: string } } | undefined
+    if (referralCode) {
+      const referrer = await resolveReferrerByCode(toEnDigits(referralCode))
+      if (referrer && referrer.id) {
+        referredByConnect = { connect: { id: referrer.id } }
+      }
+    }
     user = await db.user.create({
       data: {
         mobile,
         status: "ACTIVE",
         mobileVerifiedAt: new Date(),
+        referralCode: await (async () => {
+          // تولید کد یکتا پیش از ساخت کاربر (ستون unique اجازهٔ null می‌دهد؛ یکتایی با تلاش مجدد)
+          for (let i = 0; i < 5; i++) {
+            const c = genReferralCode()
+            const clash = await db.user.findUnique({ where: { referralCode: c }, select: { id: true } })
+            if (!clash) return c
+          }
+          return null
+        })(),
+        referredBy: referredByConnect,
         profile: { create: {} },
         roles: { create: [{ role: { connect: { name: "USER" } } }] },
       },
@@ -52,6 +76,11 @@ export async function POST(req: NextRequest) {
     isNew = true
   } else if (user.status !== "ACTIVE") {
     return fail("حساب شما در دسترس نیست. با پشتیبانی تماس بگیرید.", 403)
+  }
+
+  // REF-SYS: کاربران قدیمی فاقد کد رفرال، به‌صورت تنبل کد یکتا می‌گیرند
+  if (!user.referralCode) {
+    await assignUniqueReferralCode(user.id)
   }
 
   await db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })

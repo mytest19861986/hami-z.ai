@@ -9,6 +9,14 @@ export const SETTING_DEFAULTS: Record<
   { value: string; title: string; description?: string; superOnly?: boolean; group: SettingGroup }
 > = {
   // ─── گروه: مالی و تجاری ───
+  USER_REFERRAL_COMMISSION_PERCENT: {
+    value: "10",
+    title: "درصد پورسانت معرفی کاربر — REF-SYS",
+    description:
+      "درصد پورسانتی که به کاربرِ معرف (ثبت‌نام با کد رفرال) از خرید طرح کاربرِ معرفی‌شده تعلق می‌گیرد. اگر برای طرح خاصی «درصد پورسانت معرفی» بیشتر از صفر ثبت شده باشد، همان مقدار طرح مقدم است. برای دریافت پورسانت، معرف باید کارت بانکی و شبا را در پروفایل تکمیل کند.",
+    superOnly: true,
+    group: "مالی و تجاری",
+  },
   MIN_SETTLEMENT_AMOUNT: {
     value: "100000",
     title: "حداقل مبلغ درخواست تسویه (تومان) — OPEN-06",

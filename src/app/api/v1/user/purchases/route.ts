@@ -5,7 +5,6 @@ import { db } from "@/lib/db"
 import { genTrackingCode } from "@/lib/codes"
 import { notify } from "@/lib/audit"
 import { mobileSchema } from "@/lib/validators"
-
 // خرید طرح (PAY-001..010 · AC-05 · AC-06) — بدون درگاه واقعی، تأیید دستی و صادقانه
 export async function GET() {
   const auth = await requireUser()
@@ -53,23 +52,26 @@ export async function POST(req: NextRequest) {
   const plan = await db.discountPlan.findFirst({ where: { id: planId, isActive: true } })
   if (!plan) return fail("طرح انتخاب‌شده فعال نیست یا وجود ندارد.", 404)
 
+  // REF-SYS/PAY: کد ملی خریدار برای خرید طرح الزامی است (۱۰ رقم)
+  const buyerProfile = await db.userProfile.findUnique({ where: { userId: auth.user.id } })
+  if (!buyerProfile?.nationalCode || !/^\d{10}$/.test(buyerProfile.nationalCode)) {
+    return fail(
+      "برای خرید طرح، ثبت کد ملی (۱۰ رقم) در پروفایل الزامی است. از صفحهٔ پروفایل آن را تکمیل کنید.",
+      422,
+      { needNationalCode: true }
+    )
+  }
+
   // مالکیت دارنده (RBAC-006 · SEC-009)
   const holder = await db.planHolder.findFirst({
     where: { id: holderId, createdByUserId: auth.user.id },
   })
   if (!holder) return fail("دارنده طرح نامعتبر است.", 403)
 
-  // اعتبار معرف (REF-001/002) — فقط نقش همکار معرفی پورسانت معرفی می‌گیرد
-  let referrerValid = false
+  // REF-SYS: فیلد قدیمی معرف (شماره موبایل) فقط اعتبار قالب می‌گیرد؛ تعیین پورسانت در تأیید خرید
+  // بر اساس اتصال ثبت‌نام (کد رفرال) انجام می‌شود و این فیلد صرفاً تکمیلی/قدیمی است.
   if (referrerMobile) {
-    const referrer = await db.user.findFirst({
-      where: { mobile: referrerMobile, status: "ACTIVE", roles: { some: { role: { name: "REFERRER" } } } },
-    })
-    referrerValid = !!referrer
-    if (!referrerValid) {
-      return fail("شماره معرف معتبر نیست یا دارای نقش همکار معرفی نیست.", 422)
-    }
-    if (referrer!.id === auth.user.id) return fail("نمی‌توانید خودتان را معرف ثبت کنید.", 422)
+    if (referrerMobile === auth.user.mobile) return fail("نمی‌توانید خودتان را معرف ثبت کنید.", 422)
   }
 
   // جلوگیری از درخواست تکراری باز برای همان طرح/دارنده (AC-06)

@@ -117,31 +117,54 @@ export async function POST(req: NextRequest) {
           data: { status: "SUCCESS", approvedById: auth.user.id, approvedAt: now, rejectReason: null },
         })
 
-        // پورسانت معرفی — فقط اگر معرف معتبر با نقش همکار معرفی وجود داشته باشد (REF-005 · OPEN-05)
-        let referrerToNotify: { id: string; percent: number } | null = null
-        if (purchase.referrerMobile) {
-          const referrer = await tx.user.findFirst({
-            where: { mobile: purchase.referrerMobile, status: "ACTIVE", roles: { some: { role: { name: "REFERRER" } } } },
+        // ── REF-SYS: پورسانت معرفی بر اساس اتصال ثبت‌نام با کد رفرال ──
+        // معرف: ۱) کاربری که خریدار هنگام ثبت‌نام با کد رفرال او متصل شده؛
+        //       ۲) فالبک قدیمی: شماره موبایل معرف ثبت‌شده روی خرید.
+        let referrerToNotify: { id: string; percent: number; isAgent: boolean } | null = null
+        const buyer = await tx.user.findUnique({
+          where: { id: purchase.buyerUserId },
+          include: { referredBy: { include: { roles: { include: { role: true } } } } },
+        })
+        let referrer = buyer?.referredBy ?? null
+        if (!referrer && purchase.referrerMobile) {
+          referrer = await tx.user.findFirst({
+            where: { mobile: purchase.referrerMobile, status: "ACTIVE" },
+            include: { roles: { include: { role: true } } },
           })
-          if (referrer) {
-            const existingCommission = await tx.commission.findUnique({ where: { sourcePurchaseId: purchase.id } })
-            if (!existingCommission && purchase.plan.referralCommissionPercent > 0) {
-              await tx.commission.create({
-                data: {
-                  beneficiaryUserId: referrer.id,
-                  type: "REFERRAL",
-                  planId: purchase.planId,
-                  baseAmount: purchase.amount,
-                  percent: purchase.plan.referralCommissionPercent,
-                  amount: commissionAmount(purchase.amount, purchase.plan.referralCommissionPercent),
-                  status: "PENDING",
-                  sourcePurchaseId: purchase.id,
-                  description: `پورسانت معرفی خرید ${purchase.trackingCode}`,
-                },
-              })
-              // اعلان پس از commit ارسال می‌شود (نوشتن با کلاینت سراسری داخل تراکنش، بن‌بست SQLite می‌سازد)
-              referrerToNotify = { id: referrer.id, percent: purchase.plan.referralCommissionPercent }
-            }
+        }
+
+        if (referrer && referrer.id !== purchase.buyerUserId) {
+          const isAgent = referrer.roles.some((r) => r.role.name === "AGENT")
+          let percent: number
+          if (isAgent) {
+            // همکار فروش: درصد اختصاصی همان طرح (قابل تنظیم در داشبورد ادمین → طرح‌ها)
+            percent = purchase.plan.salesCommissionPercent
+          } else if (purchase.plan.referralCommissionPercent > 0) {
+            // درصد معرفی ثبت‌شده روی طرح (اختیاری) مقدم است
+            percent = purchase.plan.referralCommissionPercent
+          } else {
+            // در غیر این صورت: تنظیم سراسری داشبورد ادمین
+            const row = await tx.setting.findUnique({ where: { key: "USER_REFERRAL_COMMISSION_PERCENT" } })
+            percent = parseInt(row?.value ?? "10", 10) || 0
+          }
+
+          const existingCommission = await tx.commission.findUnique({ where: { sourcePurchaseId: purchase.id } })
+          if (!existingCommission && percent > 0) {
+            await tx.commission.create({
+              data: {
+                beneficiaryUserId: referrer.id,
+                type: "REFERRAL",
+                planId: purchase.planId,
+                baseAmount: purchase.amount,
+                percent,
+                amount: commissionAmount(purchase.amount, percent),
+                status: "PENDING",
+                sourcePurchaseId: purchase.id,
+                description: `پورسانت ${isAgent ? "معرفی (همکار فروش)" : "معرفی کاربر"} خرید ${purchase.trackingCode}`,
+              },
+            })
+            // اعلان پس از commit ارسال می‌شود (نوشتن با کلاینت سراسری داخل تراکنش، بن‌بست SQLite می‌سازد)
+            referrerToNotify = { id: referrer.id, percent, isAgent }
           }
         }
 
@@ -160,9 +183,9 @@ export async function POST(req: NextRequest) {
         await notify(
           result.referrerToNotify.id,
           "پورسانت معرفی ثبت شد",
-          `برای خریدی که معرفی کرده بودید، پورسانت ${result.referrerToNotify.percent}٪ ثبت و در انتظار تأیید است.`,
+          `برای خریدی که ${result.referrerToNotify.isAgent ? "با کد رفرال همکار فروش شما" : "با کد رفرال شما"} معرفی شده بود، پورسانت ${result.referrerToNotify.percent}٪ ثبت و در انتظار تأیید است. برای دریافت پورسانت، شماره کارت بانکی و شبا را در پروفایل تکمیل کنید.`,
           "INFO",
-          "/agent/commissions"
+          result.referrerToNotify.isAgent ? "/agent/commissions" : "/user/wallet"
         )
       }
       return ok({ membershipId: result.membership.id })

@@ -209,6 +209,27 @@ async function main() {
   }
   console.log("✅ کاربران نمونه (کاربر/نماینده/معرف/پزشک در انتظار)")
   console.log("👤 ۰۹۱۲۰۰۰۰۰۰۱ = کاربر عادی | ۰۹۱۲۰۰۰۰۰۰۲ = نماینده تأییدشده | ۰۹۱۲۰۰۰۰۰۰۳ = معرف | ۰۹۱۲۰۰۰۰۰۰۴ = پزشک در انتظار")
+
+  // ── REF-SYS: کد رفرال یکتا برای همهٔ کاربران فاقد کد ──
+  const REFERRAL_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+  function genCode(): string {
+    let out = ""
+    for (let i = 0; i < 6; i++) out += REFERRAL_ALPHABET[Math.floor(Math.random() * REFERRAL_ALPHABET.length)]
+    return out
+  }
+  const noCode = await db.user.findMany({ where: { referralCode: null }, select: { id: true } })
+  for (const u of noCode) {
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const c = genCode()
+      const clash = await db.user.findUnique({ where: { referralCode: c }, select: { id: true } })
+      if (!clash) {
+        await db.user.update({ where: { id: u.id }, data: { referralCode: c } })
+        break
+      }
+    }
+  }
+  console.log(`✅ کد رفرال برای ${noCode.length} کاربر تضمین شد`)
+
   console.log("🏁 seed کامل شد.")
 }
 

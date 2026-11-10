@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-import { Smartphone, KeyRound, LockKeyhole, Info, ArrowRight, RefreshCw, ShieldCheck, Clock3, FileCheck2 } from "lucide-react"
+import { Smartphone, KeyRound, LockKeyhole, Info, ArrowRight, RefreshCw, ShieldCheck, Clock3, FileCheck2, Users } from "lucide-react"
 import { api, errMessage } from "@/lib/client"
 import { toast } from "@/hooks/use-toast"
 import { BrandMark, Shamseh } from "@/components/shared/brand"
@@ -17,10 +17,13 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const nextUrl = searchParams.get("next")
+  // REF-SYS: کد معرف از لینک دعوت (?ref=XXXX) به‌صورت خودکار پر می‌شود
+  const refParam = searchParams.get("ref") ?? ""
 
   const [step, setStep] = useState<Step>("mobile")
   const [mobile, setMobile] = useState("")
   const [code, setCode] = useState("")
+  const [referralCode, setReferralCode] = useState(refParam.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8))
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [devCode, setDevCode] = useState<string | null>(null)
@@ -71,7 +74,7 @@ export default function LoginPage() {
     try {
       const res = await api.post<{ roles: string[]; redirect: string; isNew: boolean }>(
         "/api/v1/auth/verify-otp",
-        { mobile, code }
+        { mobile, code, referralCode: step === "otp" ? referralCode : "" }
       )
       toast({ title: res.isNew ? "ثبت‌نام با موفقیت انجام شد" : "خوش آمدید", description: "در حال انتقال به پنل شما…" })
       router.replace(nextUrl || res.redirect)
@@ -178,12 +181,31 @@ export default function LoginPage() {
                       dir="ltr"
                       inputMode="tel"
                       placeholder="09123456789"
+                      maxLength={11}
                       value={mobile}
-                      onChange={(e) => setMobile(e.target.value)}
+                      onChange={(e) => setMobile(e.target.value.replace(/\D/g, ""))}
                       onKeyDown={(e) => e.key === "Enter" && mobile && sendOtp()}
                       className="h-11 pr-9 text-left"
                     />
                   </div>
+                  <p className="text-[11px] text-muted-foreground">با صفر ۱۱ رقم یا بدون صفر ۱۰ رقم</p>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">کد معرف (اختیاری)</label>
+                  <div className="relative">
+                    <Users className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      dir="ltr"
+                      placeholder="مثلاً HK4TP2"
+                      maxLength={8}
+                      value={referralCode}
+                      onChange={(e) => setReferralCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                      className="h-11 pr-9 text-left font-mono tracking-widest"
+                    />
+                  </div>
+                  <p className="text-[11px] leading-5 text-muted-foreground">
+                    اگر دوستی شما را با کد رفرال به حامی‌کارت دعوت کرده، کد او را وارد کنید تا پس از خرید طرح، پورسانت معرفی برایش ثبت شود.
+                  </p>
                 </div>
                 <Button className="h-11 w-full" disabled={loading || mobile.length < 10} onClick={sendOtp}>
                   {loading ? "در حال ارسال…" : "دریافت کد تأیید"}

@@ -10,7 +10,7 @@ import { PageHeader } from "@/components/shared/page-header"
 import { ProvinceCitySelect } from "@/components/shared/province-city-select"
 import { api, errMessage } from "@/lib/client"
 import { toast } from "@/hooks/use-toast"
-import { Save, Landmark, ShieldCheck } from "lucide-react"
+import { Save, Landmark, ShieldCheck, Gift, Copy, Link2, CheckCircle2, AlertCircle } from "lucide-react"
 
 interface ProfileData {
   mobile: string
@@ -28,6 +28,12 @@ interface ProfileData {
     cardNumber: string | null
     sheba: string | null
     bankAccountName: string | null
+  } | null
+  referral?: {
+    code: string
+    referredCount: number
+    referredBy: { name: string } | null
+    bankInfoComplete: boolean
   } | null
 }
 
@@ -64,6 +70,15 @@ export default function ProfilePage() {
     }
   }
 
+  async function copyText(text: string, label: string) {
+    try {
+      await navigator.clipboard.writeText(text)
+      toast({ title: "کپی شد", description: label })
+    } catch {
+      toast({ title: "کپی ناموفق", description: "به‌صورت دستی کپی کنید.", variant: "destructive" })
+    }
+  }
+
   if (!data) {
     return (
       <div className="space-y-4">
@@ -79,7 +94,7 @@ export default function ProfilePage() {
     <div>
       <PageHeader
         title="پروفایل کاربری"
-        description="اطلاعات هویتی، مکانی و بانکی شما — اطلاعات بانکی برای درخواست تسویه لازم است (PROFILE-006/007)."
+        description="اطلاعات هویتی، مکانی و بانکی شما — کد ملی برای خرید طرح و اطلاعات بانکی برای دریافت پورسانت الزامی است."
         action={
           <Button onClick={save} disabled={loading}>
             <Save className="ml-1 h-4 w-4" />
@@ -87,6 +102,70 @@ export default function ProfilePage() {
           </Button>
         }
       />
+
+      {/* REF-SYS: کارت کد رفرال */}
+      {data.referral ? (
+        <Card className="mb-5 border-primary/25 bg-gradient-to-l from-primary/5 via-card to-card">
+          <CardContent className="p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                  <Gift className="h-5 w-5 text-primary" />
+                </span>
+                <div>
+                  <h2 className="font-semibold">کد رفرال شما</h2>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    دوستان را با این کد به حامی‌کارت دعوت کنید؛ با خرید طرح توسط آن‌ها، پورسانت معرفی
+                    {data.referral.referredBy ? ` (معرف شما: ${data.referral.referredBy.name})` : ""} برای شما ثبت می‌شود.
+                    {data.referral.referredCount > 0 ? ` تاکنون ${data.referral.referredCount} نفر با کد شما ثبت‌نام کرده‌اند.` : ""}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <code className="rounded-lg border-2 border-dashed border-primary/30 bg-white px-4 py-2 font-mono text-xl font-bold tracking-[0.3em] text-primary" dir="ltr">
+                  {data.referral.code}
+                </code>
+                <div className="flex flex-col gap-2">
+                  <Button size="sm" variant="outline" onClick={() => copyText(data.referral!.code, "کد رفرال کپی شد")}>
+                    <Copy className="ml-1 h-4 w-4" />
+                    کپی کد
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      copyText(
+                        `${window.location.origin}/auth/login?ref=${data.referral!.code}`,
+                        "لینک دعوت کپی شد"
+                      )
+                    }
+                  >
+                    <Link2 className="ml-1 h-4 w-4" />
+                    کپی لینک دعوت
+                  </Button>
+                </div>
+              </div>
+            </div>
+            {/* REF-SYS: وضعیت اطلاعات بانکی برای دریافت پورسانت */}
+            <div
+              className={`mt-4 flex items-center gap-2 rounded-lg p-3 text-xs leading-5 ${
+                data.referral.bankInfoComplete
+                  ? "bg-emerald-50 text-emerald-800"
+                  : "bg-amber-50 text-amber-800"
+              }`}
+            >
+              {data.referral.bankInfoComplete ? (
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+              ) : (
+                <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
+              )}
+              {data.referral.bankInfoComplete
+                ? "اطلاعات بانکی شما کامل است؛ پورسانت‌های معرفی پس از تأیید مدیر قابل برداشت خواهند بود."
+                : "برای دریافت پورسانت معرفی، تکمیل شماره کارت بانکی (۱۶ رقم) و شبا (۲۴ رقم) در بخش اطلاعات بانکی زیر الزامی است."}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Card>
@@ -108,8 +187,8 @@ export default function ProfilePage() {
                 <Input dir="ltr" value={data.mobile} disabled className="text-left" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">کد ملی</label>
-                <Input dir="ltr" inputMode="numeric" maxLength={10} placeholder="۱۰ رقم" value={p?.nationalCode ?? ""} onChange={(e) => setData({ ...data, profile: { ...p!, nationalCode: e.target.value } })} className="text-left" />
+                <label className="text-sm font-medium">کد ملی (الزامی برای خرید طرح)</label>
+                <Input dir="ltr" inputMode="numeric" maxLength={10} placeholder="۱۰ رقم، بدون نیاز به رقم کنترل" value={p?.nationalCode ?? ""} onChange={(e) => setData({ ...data, profile: { ...p!, nationalCode: e.target.value.replace(/\D/g, "") } })} className="text-left" />
               </div>
             </div>
             <div className="space-y-1.5">
@@ -147,18 +226,18 @@ export default function ProfilePage() {
             <CardContent className="space-y-4 p-6">
               <div className="flex items-center gap-2">
                 <Landmark className="h-5 w-5 text-primary" />
-                <h2 className="font-semibold">اطلاعات بانکی (اختیاری)</h2>
+                <h2 className="font-semibold">اطلاعات بانکی (الزامی برای دریافت پورسانت)</h2>
               </div>
               <p className="rounded-lg bg-muted/60 p-3 text-xs leading-5 text-muted-foreground">
-                ثبت شماره کارت و شبا برای استفاده‌های عمومی پروفایل الزامی نیست؛ اما برای «درخواست تسویه پورسانت» به هر دو به‌همراه نام صاحب حساب نیاز خواهد بود (BR-04/05).
+                برای دریافت پورسانت معرفی (رفرال) و پورسانت فروش، ثبت شماره کارت ۱۶ رقمی و شبا ۲۴ رقمی الزامی است؛ تا تکمیل این اطلاعات، پورسانت‌های شما تأیید و به کیف پول واریز نمی‌شود.
               </p>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">شماره کارت ۱۶ رقمی</label>
                 <Input dir="ltr" inputMode="numeric" maxLength={16} placeholder="6037xxxxxxxxxxxx" value={p?.cardNumber ?? ""} onChange={(e) => setData({ ...data, profile: { ...p!, cardNumber: e.target.value.replace(/\D/g, "") } })} className="text-left font-mono" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">شماره شبا</label>
-                <Input dir="ltr" placeholder="IR + ۲۴ رقم" value={p?.sheba ?? ""} onChange={(e) => setData({ ...data, profile: { ...p!, sheba: e.target.value } })} className="text-left font-mono" />
+                <label className="text-sm font-medium">شماره شبا (۲۴ رقم، با یا بدون IR)</label>
+                <Input dir="ltr" maxLength={26} placeholder="IR + ۲۴ رقم یا فقط ۲۴ رقم" value={p?.sheba ?? ""} onChange={(e) => setData({ ...data, profile: { ...p!, sheba: e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, "") } })} className="text-left font-mono" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">نام صاحب حساب</label>

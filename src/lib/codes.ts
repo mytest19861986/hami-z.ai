@@ -17,3 +17,15 @@ export function genCardSerial(): string {
   const digits = Array.from({ length: 12 }, () => randomInt(0, 10)).join("")
   return `HK ${digits.slice(0, 4)} ${digits.slice(4, 8)} ${digits.slice(8, 12)}`
 }
+
+/**
+ * کد رفرال کاربر (REF-SYS) — ۶ نویسه از الفبای بدون ابهام
+ * (بدون I/O/0/1/L و مانند آن تا خوانایی پیامکی حفظ شود).
+ * یکتایی در سطح دیتابیس (User.referralCode unique) با تلاش مجدد تضمین می‌شود.
+ */
+const REFERRAL_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+export function genReferralCode(): string {
+  let out = ""
+  for (let i = 0; i < 6; i++) out += REFERRAL_ALPHABET[randomInt(0, REFERRAL_ALPHABET.length)]
+  return out
+}

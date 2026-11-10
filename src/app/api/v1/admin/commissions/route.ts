@@ -4,6 +4,7 @@ import { ok, fail, requirePermission, parseBody } from "@/lib/api"
 import { db } from "@/lib/db"
 import { audit, notify } from "@/lib/audit"
 import { applyWalletTx } from "@/lib/wallet"
+import { isValidCardNumber, isValidSheba } from "@/lib/validators"
 
 // تأیید/رد پورسانت (ADMIN-017/018 · REF-006..009 · BR-13/14)
 export async function GET(req: NextRequest) {
@@ -31,7 +32,12 @@ export async function GET(req: NextRequest) {
       skip: (page - 1) * perPage,
       take: perPage,
       include: {
-        beneficiary: { select: { mobile: true, profile: { select: { firstName: true, lastName: true } } } },
+        beneficiary: {
+          select: {
+            mobile: true,
+            profile: { select: { firstName: true, lastName: true, cardNumber: true, sheba: true } },
+          },
+        },
         plan: { select: { title: true } },
         sourceSale: { select: { holder: { select: { firstName: true, lastName: true } } } },
         sourcePurchase: { select: { holder: { select: { firstName: true, lastName: true } } } },
@@ -50,6 +56,12 @@ export async function GET(req: NextRequest) {
       type: c.type,
       beneficiary: `${c.beneficiary.profile?.firstName ?? ""} ${c.beneficiary.profile?.lastName ?? ""}`.trim() || c.beneficiary.mobile,
       beneficiaryMobile: c.beneficiary.mobile,
+      // REF-SYS: نشانگر تکمیل کارت بانکی + شبا برای دریافت پورسانت
+      bankInfoComplete:
+        !!c.beneficiary.profile?.cardNumber &&
+        isValidCardNumber(c.beneficiary.profile.cardNumber) &&
+        !!c.beneficiary.profile?.sheba &&
+        isValidSheba(c.beneficiary.profile.sheba),
       planTitle: c.plan.title,
       customer: c.sourceSale
         ? `${c.sourceSale.holder.firstName} ${c.sourceSale.holder.lastName}`
@@ -86,11 +98,19 @@ export async function POST(req: NextRequest) {
 
   try {
     const result = await db.$transaction(async (tx) => {
-      const commission = await tx.commission.findUnique({ where: { id: commissionId }, include: { beneficiary: true } })
+      const commission = await tx.commission.findUnique({
+        where: { id: commissionId },
+        include: { beneficiary: { include: { profile: true } } },
+      })
       if (!commission) throw new Error("NOT_FOUND")
       if (commission.status !== "PENDING") throw new Error("NOT_PENDING")
 
       if (decision === "APPROVE") {
+        // REF-SYS: برای دریافت پورسانت (فروش مستقیم یا معرفی)، کارت بانکی و شبا الزامی است
+        const bp = commission.beneficiary.profile
+        if (!bp?.cardNumber || !isValidCardNumber(bp.cardNumber) || !bp?.sheba || !isValidSheba(bp.sheba)) {
+          throw new Error("BANK_INFO_MISSING")
+        }
         // تأیید = افزایش اتمیک موجودی قابل برداشت (WALLET-002 · REF-006 · WALLET-006 idempotent)
         await applyWalletTx(tx, commission.beneficiaryUserId, "COMMISSION_CREDIT", commission.amount, {
           refType: "COMMISSION",
@@ -126,6 +146,8 @@ export async function POST(req: NextRequest) {
     const map: Record<string, string> = {
       NOT_FOUND: "پورسانت یافت نشد.",
       NOT_PENDING: "این پورسانت قبلاً تعیین تکلیف شده است.",
+      BANK_INFO_MISSING:
+        "دریافت‌کنندهٔ پورسانت، شماره کارت بانکی (۱۶ رقم) و شبا (۲۴ رقم) را در پروفایل خود تکمیل نکرده است؛ تا تکمیل اطلاعات بانکی، امکان تأیید و واریز پورسانت وجود ندارد.",
     }
     if (msg in map) return fail(map[msg], 409)
     console.error("[COMMISSION_ACTION_FAIL]", e)
