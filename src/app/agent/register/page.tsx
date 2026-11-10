@@ -91,7 +91,7 @@ export default function AgentRegisterPage() {
             <Input dir="ltr" inputMode="tel" placeholder="09xxxxxxxxx" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="text-left" disabled={submitted} />
           </div>
           <div className="sm:col-span-2">
-            <ProvinceCitySelect province={form.province} city={form.city} onProvinceChange={(p) => setForm({ ...form, province: p })} onCityChange={(c) => setForm({ ...form, city: c })} required />
+            <ProvinceCitySelect province={form.province} city={form.city} onChange={({ province, city }) => setForm((f) => ({ ...f, province, city }))} required />
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <label className="text-sm font-medium">توضیح فعالیت</label>

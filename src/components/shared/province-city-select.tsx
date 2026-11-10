@@ -3,18 +3,21 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PROVINCES, PROVINCE_NAMES } from "@/constants/geo"
 
+// PROFILE-005 (بازنویسی): تغییر استان و شهر در «یک» رویداد اعلان می‌شود تا
+// والد نتواند با state کهنه، مقدار جدید استان را بازنویسی کند (باگ قبلی:
+// onCityChange("") بعد از onProvinceChange(v) استان تازه‌انتخاب‌شده را می‌پوشاند).
 export function ProvinceCitySelect({
   province,
   city,
-  onProvinceChange,
-  onCityChange,
+  onChange,
   required,
+  disabled,
 }: {
   province?: string | null
   city?: string | null
-  onProvinceChange: (p: string) => void
-  onCityChange: (c: string) => void
+  onChange: (next: { province: string; city: string }) => void
   required?: boolean
+  disabled?: boolean
 }) {
   const cities = PROVINCES[province ?? ""] ?? []
   return (
@@ -25,10 +28,8 @@ export function ProvinceCitySelect({
         </label>
         <Select
           value={province ?? ""}
-          onValueChange={(v) => {
-            onProvinceChange(v)
-            onCityChange("") // PROFILE-005: تغییر استان → بازبینی شهر
-          }}
+          onValueChange={(v) => onChange({ province: v, city: "" })}
+          disabled={disabled}
         >
           <SelectTrigger>
             <SelectValue placeholder="انتخاب استان" />
@@ -44,7 +45,11 @@ export function ProvinceCitySelect({
         <label className="text-sm font-medium">
           شهر {required ? <span className="text-destructive">*</span> : null}
         </label>
-        <Select value={city ?? ""} onValueChange={onCityChange} disabled={!province}>
+        <Select
+          value={city ?? ""}
+          onValueChange={(c) => onChange({ province: province ?? "", city: c })}
+          disabled={!province || disabled}
+        >
           <SelectTrigger>
             <SelectValue placeholder={province ? "انتخاب شهر" : "ابتدا استان"} />
           </SelectTrigger>

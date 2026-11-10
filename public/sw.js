@@ -6,7 +6,8 @@
      • سایر استاتیک‌های هم‌مبدأ: stale-while-revalidate
      • /api/*: فقط شبکه (بدون کش — داده‌های حساس مالی)
 */
-const VERSION = "hk-v3";
+// hk-v4: بازاعتبارسنجی کش پس از رفع باگ استان و داشبورد طرح‌ها (چانک‌های dev پایدارند)
+const VERSION = "hk-v4";
 const STATIC_CACHE = `hk-static-${VERSION}`;
 const RUNTIME_CACHE = `hk-runtime-${VERSION}`;
 const OFFLINE_URL = "/offline";

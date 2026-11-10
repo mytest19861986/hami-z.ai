@@ -207,8 +207,9 @@ export default function ProfilePage() {
             <ProvinceCitySelect
               province={p?.province}
               city={p?.city}
-              onProvinceChange={(v) => setData({ ...data, profile: { ...p!, province: v } })}
-              onCityChange={(v) => setData({ ...data, profile: { ...p!, city: v } })}
+              onChange={({ province, city }) =>
+                setData((d) => (d && d.profile ? { ...d, profile: { ...d.profile, province, city } } : d))
+              }
             />
             <div className="space-y-1.5">
               <label className="text-sm font-medium">نشانی</label>

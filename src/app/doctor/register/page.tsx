@@ -144,8 +144,7 @@ export default function DoctorRegisterPage() {
             <ProvinceCitySelect
               province={form.province}
               city={form.city}
-              onProvinceChange={(p) => setForm({ ...form, province: p })}
-              onCityChange={(c) => setForm({ ...form, city: c })}
+              onChange={({ province, city }) => setForm((f) => ({ ...f, province, city }))}
               required
             />
           </div>
