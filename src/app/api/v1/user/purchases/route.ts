@@ -63,9 +63,9 @@ export async function GET() {
   )
 }
 
+// PAY/SELF: دارنده طرح ارسال نمی‌شود — خرید فقط به نام خودِ کاربر ثبت می‌شود
 const createPurchaseSchema = z.object({
   planId: z.string().min(1, "طرح را انتخاب کنید."),
-  holderId: z.string().min(1, "دارنده طرح را انتخاب کنید."),
   referrerMobile: mobileSchema.optional().or(z.literal("")),
 })
 
@@ -74,27 +74,49 @@ export async function POST(req: NextRequest) {
   if ("response" in auth) return auth.response
   const parsed = await parseBody(req, createPurchaseSchema)
   if ("response" in parsed) return parsed.response
-  const { planId, holderId, referrerMobile } = parsed.data
+  const { planId, referrerMobile } = parsed.data
 
   // طرح باید فعال باشد (PLAN-005)
   const plan = await db.discountPlan.findFirst({ where: { id: planId, isActive: true } })
   if (!plan) return fail("طرح انتخاب‌شده فعال نیست یا وجود ندارد.", 404)
 
-  // REF-SYS/PAY: کد ملی خریدار برای خرید طرح الزامی است (۱۰ رقم)
+  // REF-SYS/PAY/SELF: نام، نام خانوادگی و کد ملی خریدار برای ثبت طرح به نام خودش الزامی است
   const buyerProfile = await db.userProfile.findUnique({ where: { userId: auth.user.id } })
-  if (!buyerProfile?.nationalCode || !/^\d{10}$/.test(buyerProfile.nationalCode)) {
+  const nameOk =
+    !!buyerProfile?.firstName && buyerProfile.firstName.trim().length >= 2 &&
+    !!buyerProfile?.lastName && buyerProfile.lastName.trim().length >= 2
+  if (!buyerProfile?.nationalCode || !/^\d{10}$/.test(buyerProfile.nationalCode) || !nameOk) {
     return fail(
-      "برای خرید طرح، ثبت کد ملی (۱۰ رقم) در پروفایل الزامی است. از صفحهٔ پروفایل آن را تکمیل کنید.",
+      "برای خرید طرح به نام خودتان، تکمیل نام، نام خانوادگی و کد ملی (۱۰ رقم) در پروفایل الزامی است.",
       422,
-      { needNationalCode: true }
+      { needProfile: true }
     )
   }
 
-  // مالکیت دارنده (RBAC-006 · SEC-009)
-  const holder = await db.planHolder.findFirst({
-    where: { id: holderId, createdByUserId: auth.user.id },
+  // PAY/SELF: دارندهٔ طرح = خودِ خریدار؛ بر پایهٔ کد ملی یکتا پیدا یا ساخته می‌شود
+  // (اگر قبلاً مثلاً از طریق فروش نماینده کارتی با همین کد ملی ثبت شده باشد، همان هویت استفاده می‌شود)
+  let holder = await db.planHolder.findUnique({
+    where: { nationalCode: buyerProfile.nationalCode },
   })
-  if (!holder) return fail("دارنده طرح نامعتبر است.", 403)
+  if (!holder) {
+    try {
+      holder = await db.planHolder.create({
+        data: {
+          firstName: buyerProfile.firstName.trim(),
+          lastName: buyerProfile.lastName.trim(),
+          nationalCode: buyerProfile.nationalCode,
+          mobile: auth.user.mobile,
+          createdByUserId: auth.user.id,
+        },
+      })
+    } catch {
+      // رقابت هم‌زمان روی یکتایی کد ملی — دوباره پیدا کن
+      holder = await db.planHolder.findUnique({
+        where: { nationalCode: buyerProfile.nationalCode },
+      })
+      if (!holder) return fail("خطا در ثبت دارنده طرح.", 500)
+    }
+  }
 
   // REF-SYS: فیلد قدیمی معرف (شماره موبایل) فقط اعتبار قالب می‌گیرد؛ تعیین پورسانت در تأیید خرید
   // بر اساس اتصال ثبت‌نام (کد رفرال) انجام می‌شود و این فیلد صرفاً تکمیلی/قدیمی است.
@@ -104,13 +126,13 @@ export async function POST(req: NextRequest) {
 
   // جلوگیری از درخواست تکراری باز برای همان طرح/دارنده (AC-06)
   const existingPending = await db.purchase.findFirst({
-    where: { buyerUserId: auth.user.id, planId, holderId, status: "PENDING" },
+    where: { buyerUserId: auth.user.id, planId, holderId: holder.id, status: "PENDING" },
   })
   if (existingPending) {
     return ok({
       purchase: { id: existingPending.id, trackingCode: existingPending.trackingCode },
       reused: true,
-      message: "درخواست باز با همین طرح و دارنده دارید؛ نتیجه پس از بررسی مدیر اعلام می‌شود.",
+      message: "درخواست باز با همین طرح دارید؛ نتیجه پس از بررسی مدیر اعلام می‌شود.",
     })
   }
 
@@ -118,7 +140,7 @@ export async function POST(req: NextRequest) {
     data: {
       planId,
       buyerUserId: auth.user.id,
-      holderId,
+      holderId: holder.id,
       referrerMobile: referrerMobile || null,
       amount: plan.price,
       status: "PENDING",

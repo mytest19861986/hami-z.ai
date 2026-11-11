@@ -82,7 +82,7 @@ export default async function PlanDetailPage({ params }: { params: Promise<{ id:
                 </span>
               </div>
               <ul className="mt-4 space-y-2 text-xs text-muted-foreground">
-                <li>· خریدار و دارنده کارت می‌توانند افراد متفاوتی باشند.</li>
+                <li>· خرید طرح فقط به نام خود شما ثبت و کارت به نام شما صادر می‌شود.</li>
                 <li>· امکان ثبت معرف (در صورت داشتن همکار معرفی) در زمان خرید.</li>
                 <li>· طرح منقضی‌شده یا بدون سهمیه قابل استفاده نیست.</li>
               </ul>

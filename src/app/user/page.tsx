@@ -70,12 +70,21 @@ export default function UserDashboard() {
     api.get<MembershipItem[]>("/api/v1/user/memberships").then(setMemberships).catch((e) => setError(errMessage(e)))
     api.get<VisitItem[]>("/api/v1/user/visits").then(setVisits).catch(() => {})
     api.get<PurchaseItem[]>("/api/v1/user/purchases").then(setPurchases).catch(() => {})
-    // USER-GATE: طرح‌های فعال فروش + وضعیت کد ملی (گیت پیش از خرید)
+    // USER-GATE: طرح‌های فعال فروش + وضعیت پروفایل (گیت پیش از خرید — خرید فقط به نام خود کاربر)
     api.get<ShopPlanItem[]>("/api/v1/public/plans").then(setShopPlans).catch(() => setShopPlans([]))
     api
-      .get<{ profile: { nationalCode: string | null } | null }>("/api/v1/user/profile")
+      .get<{ profile: { nationalCode: string | null; firstName: string | null; lastName: string | null } | null }>("/api/v1/user/profile")
       .then((d) =>
-        setHasNationalCode(!!(d.profile?.nationalCode && /^\d{10}$/.test(d.profile.nationalCode)))
+        setHasNationalCode(
+          !!(
+            d.profile?.nationalCode &&
+            /^\d{10}$/.test(d.profile.nationalCode) &&
+            d.profile.firstName &&
+            d.profile.firstName.trim().length >= 2 &&
+            d.profile.lastName &&
+            d.profile.lastName.trim().length >= 2
+          )
+        )
       )
       .catch(() => setHasNationalCode(null)) // گیت اصلی در صفحهٔ خرید هم موجود است
   }, [])
@@ -125,7 +134,7 @@ export default function UserDashboard() {
                   <div>
                     <p className="text-sm font-bold text-amber-900">برای خرید طرح، ابتدا پروفایل خود را تکمیل کنید</p>
                     <p className="mt-1 text-xs leading-5 text-amber-800">
-                      ثبت کد ملی (۱۰ رقم) برای صدور کارت تخفیف الزامی است؛ پس از تکمیل پروفایل، خرید طرح بلافاصله فعال می‌شود.
+                      ثبت نام، نام خانوادگی و کد ملی (۱۰ رقم) برای صدور کارت تخفیف به نام خودتان الزامی است؛ پس از تکمیل پروفایل، خرید طرح بلافاصله فعال می‌شود.
                     </p>
                   </div>
                 </div>

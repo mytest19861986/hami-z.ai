@@ -1,17 +1,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// تست سرتاسری جریان خرید (E2E):
-// ورود کاربر → ثبت دارنده جدید → درخواست خرید طرح → (واچر ادمین تأیید می‌کند)
-// → بررسی تبدیل به SUCCESS + عضویت فعال + اطلاع‌رسانی
+// تست سرتاسری جریان خرید (E2E) — نسخهٔ «خرید فقط به نام خود کاربر»:
+// ورود کاربر → درخواست خرید طرح (بدون دارنده) → (واچر ادمین تأیید می‌کند)
+// → بررسی SUCCESS + عضویت فعال به نام خود کاربر + اطلاع‌رسانی
 // ─────────────────────────────────────────────────────────────────────────────
 const BASE = "http://localhost:3000"
-const USER_MOBILE = "09121234567" // زهرا تست‌کننده
-const PLAN_ID = "cmw9gkh3f003zndma0qo1s6te" // طرح طلایی
-const HOLDER = {
-  firstName: "مریم",
-  lastName: "تست‌کننده",
-  nationalCode: "0076543219",
-  mobile: "",
-}
+const USER_MOBILE = process.env.E2E_USER ?? "09120000001" // کاربر نمونه
+const PLAN_ID = process.env.E2E_PLAN ?? "cmw9gkh3d003xndma3jxucos3" // طرح برنزی
 
 const jar = new Map()
 function log(msg) {
@@ -53,39 +47,26 @@ async function main() {
   if (!r2.body?.ok) throw new Error("user login failed: " + JSON.stringify(r2.body))
   log("USER_LOGIN ok (" + USER_MOBILE + ")")
 
-  // ۲) ثبت دارنده جدید (مثل فرم «ثبت دارنده جدید» صفحه خرید)
-  const r3 = await call("/api/v1/user/holders", { method: "POST", body: JSON.stringify(HOLDER) })
-  if (!r3.body?.ok) {
-    // اگر کد ملی تکراری بود، دارنده موجود را بردار
-    log("HOLDER create resp: " + JSON.stringify(r3.body))
-  }
-  let holderId = r3.body?.data?.holder?.id ?? null
-  if (!holderId) {
-    const r3b = await call("/api/v1/user/holders")
-    const found = (r3b.body?.data ?? []).find(
-      (h) => h.firstName === HOLDER.firstName && h.lastName === HOLDER.lastName
-    )
-    holderId = found?.id ?? null
-  }
-  if (!holderId) throw new Error("no holder available")
-  log("HOLDER ok id=" + holderId)
+  // پروفایل (برای نمایش نام دارنده در نتیجه)
+  const rp = await call("/api/v1/user/profile")
+  const prof = rp.body?.data?.profile
+  log(`PROFILE firstName=${prof?.firstName} lastName=${prof?.lastName} nc=${prof?.nationalCode}`)
 
-  // ۳) ثبت درخواست خرید (مثل دکمهٔ «خرید طرح»)
+  // ۲) ثبت درخواست خرید — فقط planId، بدون دارنده (خرید به نام خود کاربر)
   const r4 = await call("/api/v1/user/purchases", {
     method: "POST",
-    body: JSON.stringify({ planId: PLAN_ID, holderId }),
+    body: JSON.stringify({ planId: PLAN_ID }),
   })
   log("PURCHASE_CREATE resp: " + JSON.stringify(r4.body))
   if (!r4.body?.ok) throw new Error("purchase failed")
   const tracking = r4.body.data.purchase.trackingCode
 
-  // ۴) صبر برای تأیید خودکار توسط واچر (تا ۴۰ ثانیه)
+  // ۳) صبر برای تأیید خودکار توسط واچر (تا ۴۰ ثانیه)
   let final = null
   for (let i = 0; i < 20; i++) {
     await new Promise((r) => setTimeout(r, 2000))
     const r5 = await call("/api/v1/user/purchases")
-    const list = r5.body?.data ?? []
-    const p = list.find((x) => x.trackingCode === tracking)
+    const p = (r5.body?.data ?? []).find((x) => x.trackingCode === tracking)
     if (p && p.status !== "PENDING") {
       final = p
       break
@@ -97,20 +78,19 @@ async function main() {
     log("STILL PENDING after 40s — watcher did not approve!")
     process.exit(2)
   }
-  log(`FINAL status=${final.status} tracking=${final.trackingCode} approvedAt=${final.approvedAt ?? "-"}`)
+  log(`FINAL status=${final.status} tracking=${final.trackingCode} holder="${final.holder}" approvedAt=${final.approvedAt ?? "-"}`)
 
-  // ۵) بررسی عضویت و کارت مجازی
+  // ۴) بررسی عضویت‌ها (باید به نام خود کاربر باشد)
   const r6 = await call("/api/v1/user/memberships")
   const ms = r6.body?.data ?? []
-  const mine = ms.filter((m) => m.holder.includes(HOLDER.firstName) || ms.length > 0).slice(0, 3)
-  log("MEMBERSHIPS (newest):")
-  for (const m of mine) {
-    log(`  plan="${m.planTitle}" holder="${m.holder}" status=${m.status} end=${String(m.endDate).slice(0, 10)} origin=${m.originType}`)
+  log("MEMBERSHIPS (newest 3):")
+  for (const m of ms.slice(0, 3)) {
+    log(`  plan="${m.planTitle}" holder="${m.holder}" status=${m.status} origin=${m.originType}`)
   }
 
-  // ۶) اعلان‌های کاربر
+  // ۵) اعلان‌های کاربر
   const r7 = await call("/api/v1/user/notifications")
-  const notes = (r7.body?.data ?? []).slice(0, 3)
+  const notes = (r7.body?.data?.items ?? []).slice(0, 3)
   log("NOTIFICATIONS (top 3):")
   for (const n of notes) log(`  ${n.title}`)
 }

@@ -5,14 +5,12 @@ import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PageHeader } from "@/components/shared/page-header"
 import { api, errMessage } from "@/lib/client"
 import { toast } from "@/hooks/use-toast"
 import { formatToman } from "@/lib/format"
-import { BadgePercent, UserPlus, CheckCircle2, ShoppingBag, Info, IdCard, UserCheck } from "lucide-react"
+import { CheckCircle2, ShoppingBag, Info, IdCard, UserCheck } from "lucide-react"
 
 interface Plan {
   id: string
@@ -23,16 +21,21 @@ interface Plan {
   usageLimit: number | null
 }
 
-interface Holder {
-  id: string
-  firstName: string
-  lastName: string
-  nationalCode: string | null
+interface ProfileInfo {
+  profile: { nationalCode: string | null; firstName: string | null; lastName: string | null } | null
+  referral: { referredBy: { name: string } | null } | null
 }
 
-interface ProfileInfo {
-  profile: { nationalCode: string | null } | null
-  referral: { referredBy: { name: string } | null } | null
+// PAY/SELF: خرید طرح فقط برای خودِ کاربر — طرح و کارت به نام خود او ثبت می‌شود
+function isProfileComplete(p: ProfileInfo["profile"]): boolean {
+  return !!(
+    p?.nationalCode &&
+    /^\d{10}$/.test(p.nationalCode) &&
+    p.firstName &&
+    p.firstName.trim().length >= 2 &&
+    p.lastName &&
+    p.lastName.trim().length >= 2
+  )
 }
 
 export default function BuyPage() {
@@ -40,38 +43,29 @@ export default function BuyPage() {
   const planIdParam = searchParams.get("planId")
 
   const [plans, setPlans] = useState<Plan[] | null>(null)
-  const [holders, setHolders] = useState<Holder[] | null>(null)
   const [profileInfo, setProfileInfo] = useState<ProfileInfo | null>(null)
   const [planId, setPlanId] = useState(planIdParam ?? "")
-  const [holderId, setHolderId] = useState("")
-  const [newHolderMode, setNewHolderMode] = useState(false)
-  const [nh, setNh] = useState({ firstName: "", lastName: "", nationalCode: "", mobile: "" })
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState<{ trackingCode: string; message: string } | null>(null)
 
   useEffect(() => {
     api.get<Plan[]>("/api/v1/public/plans").then(setPlans).catch(() => setPlans([]))
-    api.get<Holder[]>("/api/v1/user/holders").then(setHolders).catch(() => setHolders([]))
     api.get<ProfileInfo>("/api/v1/user/profile").then(setProfileInfo).catch(() => setProfileInfo(null))
   }, [])
 
   const selectedPlan = (plans ?? []).find((p) => p.id === planId)
-  // PAY/REF-SYS: کد ملی خریدار برای خرید طرح الزامی است
-  const hasNationalCode = !!(profileInfo && profileInfo.profile?.nationalCode && /^\d{10}$/.test(profileInfo.profile.nationalCode))
+  // PAY/SELF: نام، نام خانوادگی و کد ملی خریدار برای ثبت طرح به نام خودش الزامی است
+  const profileComplete = isProfileComplete(profileInfo?.profile)
+  const selfName = profileInfo?.profile
+    ? `${profileInfo.profile.firstName ?? ""} ${profileInfo.profile.lastName ?? ""}`.trim()
+    : null
   const referredByName = profileInfo?.referral?.referredBy?.name ?? null
 
-  async function createHolderAndBuy() {
+  async function submitBuy() {
     setLoading(true)
     try {
-      let hid = holderId
-      if (newHolderMode) {
-        const res = await api.post<{ holder: Holder }>("/api/v1/user/holders", nh)
-        hid = res.holder.id
-      }
-      if (!hid) throw { message: "دارنده طرح را انتخاب یا ثبت کنید." }
       const res = await api.post<{ purchase: { trackingCode: string }; message: string }>("/api/v1/user/purchases", {
         planId,
-        holderId: hid,
       })
       setDone({ trackingCode: res.purchase.trackingCode, message: res.message })
       toast({ title: "درخواست خرید ثبت شد", description: `کد پیگیری: ${res.purchase.trackingCode}` })
@@ -113,23 +107,27 @@ export default function BuyPage() {
 
   return (
     <div>
-      <PageHeader title="خرید طرح عضویت" description="خریدار و دارنده کارت می‌توانند اشخاص متفاوتی باشند (BR-06)." />
+      <PageHeader
+        title="خرید طرح عضویت"
+        description="خرید طرح فقط به نام خود شما ثبت می‌شود و کارت تخفیف نیز به نام شما صادر خواهد شد."
+      />
 
-      {/* PAY: الزام کد ملی خریدار */}
-      {profileInfo && !hasNationalCode ? (
+      {/* PAY/SELF: الزام تکمیل پروفایل (نام + نام خانوادگی + کد ملی) برای خرید به نام خود */}
+      {profileInfo && !profileComplete ? (
         <Card className="mb-5 border-amber-300 bg-amber-50">
           <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
               <IdCard className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
               <div>
-                <p className="text-sm font-bold text-amber-900">تکمیل کد ملی برای خرید طرح الزامی است</p>
+                <p className="text-sm font-bold text-amber-900">تکمیل پروفایل برای خرید طرح الزامی است</p>
                 <p className="mt-1 text-xs leading-5 text-amber-800">
-                  کد ملی ۱۰ رقمی خود را در پروفایل ثبت کنید؛ بدون آن امکان ثبت درخواست خرید وجود ندارد.
+                  نام، نام خانوادگی و کد ملی (۱۰ رقم) شما برای ثبت طرح و صدور کارت به نام خودتان الزامی است؛
+                  بدون آن امکان ثبت درخواست خرید وجود ندارد.
                 </p>
               </div>
             </div>
             <Button asChild variant="outline" className="shrink-0 border-amber-400 bg-white hover:bg-amber-100">
-              <Link href="/user/profile">تکمیل کد ملی در پروفایل</Link>
+              <Link href="/user/profile">تکمیل پروفایل</Link>
             </Button>
           </CardContent>
         </Card>
@@ -172,72 +170,12 @@ export default function BuyPage() {
             </CardContent>
           </Card>
 
-          {/* دارنده طرح */}
-          <Card>
-            <CardContent className="p-6">
-              <h2 className="mb-4 flex items-center gap-2 font-semibold">
-                <BadgePercent className="h-5 w-5 text-primary" />
-                ۲. دارنده طرح
-              </h2>
-              {!newHolderMode ? (
-                <div className="space-y-3">
-                  {holders && holders.length > 0 ? (
-                    <Select value={holderId} onValueChange={setHolderId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="انتخاب دارنده از فهرست" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {holders.map((h) => (
-                          <SelectItem key={h.id} value={h.id}>
-                            {h.firstName} {h.lastName} {h.nationalCode ? `— ${h.nationalCode}` : ""}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : null}
-                  <Button variant="outline" className="w-full" onClick={() => setNewHolderMode(true)}>
-                    <UserPlus className="ml-1 h-4 w-4" />
-                    ثبت دارنده جدید (مثلاً عضو خانواده)
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="text-sm font-medium">نام دارنده *</label>
-                      <Input value={nh.firstName} onChange={(e) => setNh({ ...nh, firstName: e.target.value })} />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-sm font-medium">نام خانوادگی *</label>
-                      <Input value={nh.lastName} onChange={(e) => setNh({ ...nh, lastName: e.target.value })} />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="text-sm font-medium">کد ملی دارنده *</label>
-                      <Input dir="ltr" inputMode="numeric" maxLength={10} value={nh.nationalCode} onChange={(e) => setNh({ ...nh, nationalCode: e.target.value.replace(/\D/g, "") })} className="text-left" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-sm font-medium">موبایل دارنده (اختیاری)</label>
-                      <Input dir="ltr" inputMode="tel" value={nh.mobile} onChange={(e) => setNh({ ...nh, mobile: e.target.value })} className="text-left" />
-                    </div>
-                  </div>
-                  {holders && holders.length > 0 ? (
-                    <Button variant="ghost" className="w-full" onClick={() => setNewHolderMode(false)}>
-                      انتخاب از فهرست دارندگان قبلی
-                    </Button>
-                  ) : null}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
           {/* معرف */}
           <Card>
             <CardContent className="p-6">
               <h2 className="mb-1 flex items-center gap-2 font-semibold">
                 <UserCheck className="h-5 w-5 text-primary" />
-                ۳. معرف (کد رفرال)
+                ۲. معرف (کد رفرال)
               </h2>
               {referredByName ? (
                 <p className="text-xs leading-6 text-muted-foreground">
@@ -263,6 +201,10 @@ export default function BuyPage() {
                   <span className="font-medium">{selectedPlan?.title ?? "—"}</span>
                 </div>
                 <div className="flex justify-between">
+                  <span className="text-muted-foreground">دارنده طرح</span>
+                  <span className="font-medium">{selfName || "—"}</span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-muted-foreground">مبلغ</span>
                   <span className="font-bold text-primary">{selectedPlan ? formatToman(selectedPlan.price) : "—"}</span>
                 </div>
@@ -278,16 +220,10 @@ export default function BuyPage() {
               <Button
                 className="mt-5 w-full"
                 size="lg"
-                disabled={
-                  loading ||
-                  !planId ||
-                  !hasNationalCode ||
-                  (!newHolderMode && !holderId) ||
-                  (newHolderMode && (!nh.firstName || !nh.lastName || nh.nationalCode.length !== 10))
-                }
-                onClick={createHolderAndBuy}
+                disabled={loading || !planId || !profileComplete}
+                onClick={submitBuy}
               >
-                {loading ? "در حال ثبت…" : !hasNationalCode ? "ابتدا کد ملی را تکمیل کنید" : "ثبت درخواست خرید"}
+                {loading ? "در حال ثبت…" : !profileComplete ? "ابتدا پروفایل را تکمیل کنید" : "ثبت درخواست خرید"}
               </Button>
             </CardContent>
           </Card>
