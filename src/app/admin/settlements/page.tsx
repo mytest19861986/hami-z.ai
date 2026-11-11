@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -15,9 +16,9 @@ import { Pagination } from "@/components/shared/pagination"
 import { api, errMessage } from "@/lib/client"
 import { toast } from "@/hooks/use-toast"
 import { formatToman } from "@/lib/format"
-import { faDateTime } from "@/lib/jalali"
+import { faDateTime, toFaDigits } from "@/lib/jalali"
 import { maskCard, maskSheba } from "@/lib/validators"
-import { Search } from "lucide-react"
+import { Search, Copy, Check, FileSpreadsheet, FileText } from "lucide-react"
 
 interface SettlementRow {
   id: string
@@ -44,6 +45,53 @@ interface SettlementsResponse {
   settlements: SettlementRow[]
 }
 
+/* ─── کپی شماره کارت/شبا با نمایش ماسک‌شده (EXPORT-SETTLE) ───
+   مقدار کامل (که از API آمده) کلیپ‌بورد می‌شود؛ نمایش روی صفحه ماسک می‌ماند. */
+function CopyField({ value, label, masked }: { value: string; label: string; masked: string }) {
+  const [done, setDone] = useState(false)
+
+  async function copy() {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(value)
+      } else {
+        throw new Error("clipboard unavailable")
+      }
+    } catch {
+      // جایگزین برای زمینه‌های غیرامن (http) یا مرورگرهای قدیمی
+      const ta = document.createElement("textarea")
+      ta.value = value
+      ta.style.position = "fixed"
+      ta.style.opacity = "0"
+      document.body.appendChild(ta)
+      ta.select()
+      try {
+        document.execCommand("copy")
+      } catch {}
+      document.body.removeChild(ta)
+    }
+    setDone(true)
+    toast({ title: `${label} کپی شد`, description: value })
+    setTimeout(() => setDone(false), 1600)
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      title={`کپی ${label}`}
+      className="group inline-flex items-center gap-1 rounded-md border border-transparent px-1.5 py-0.5 font-mono text-[11px] transition-colors hover:border-border hover:bg-muted"
+    >
+      <span dir="ltr">{masked}</span>
+      {done ? (
+        <Check className="h-3 w-3 shrink-0 text-emerald-600" />
+      ) : (
+        <Copy className="h-3 w-3 shrink-0 opacity-40 transition-opacity group-hover:opacity-100" />
+      )}
+    </button>
+  )
+}
+
 export default function AdminSettlementsPage() {
   const [data, setData] = useState<SettlementsResponse | null>(null)
   const [q, setQ] = useState("")
@@ -54,6 +102,9 @@ export default function AdminSettlementsPage() {
   const [reason, setReason] = useState("")
   const [payTracking, setPayTracking] = useState("")
   const [isSuper, setIsSuper] = useState(false)
+  // انتخاب تسویه‌های تأییدشده برای خروجی (بین صفحات حفظ می‌شود)
+  const [selected, setSelected] = useState<Map<string, SettlementRow>>(new Map())
+  const [exporting, setExporting] = useState(false)
 
   const requestKey = JSON.stringify([q, status, page])
   const loading = requestKey !== loadedKey
@@ -90,6 +141,90 @@ export default function AdminSettlementsPage() {
     }
   }, [requestKey])
 
+  /* ─── انتخاب ردیف‌ها ─── */
+  const approvedOnPage = (data?.settlements ?? []).filter((s) => s.status === "APPROVED")
+  const selectedTotal = [...selected.values()].reduce((a, b) => a + b.amount, 0)
+  const allApprovedOnPageSelected = approvedOnPage.length > 0 && approvedOnPage.every((s) => selected.has(s.id))
+
+  function toggleOne(s: SettlementRow, on: boolean) {
+    setSelected((prev) => {
+      const n = new Map(prev)
+      if (on) n.set(s.id, s)
+      else n.delete(s.id)
+      return n
+    })
+  }
+
+  function toggleAllOnPage(on: boolean) {
+    setSelected((prev) => {
+      const n = new Map(prev)
+      for (const s of approvedOnPage) {
+        if (on) n.set(s.id, s)
+        else n.delete(s.id)
+      }
+      return n
+    })
+  }
+
+  /* ─── خروجی اکسل (فایل xlsx از سرور) ─── */
+  async function exportXlsx() {
+    if (selected.size === 0 || exporting) return
+    setExporting(true)
+    try {
+      const res = await fetch("/api/v1/admin/settlements/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest" },
+        credentials: "same-origin",
+        body: JSON.stringify({ ids: [...selected.keys()] }),
+      })
+      if (!res.ok) {
+        let msg = "خطا در ساخت خروجی اکسل."
+        try {
+          const j = (await res.json()) as { error?: string }
+          if (j?.error) msg = j.error
+        } catch {}
+        throw new Error(msg)
+      }
+      const count = Number(res.headers.get("X-Export-Count") ?? "0")
+      const blob = await res.blob()
+      const cd = res.headers.get("Content-Disposition") ?? ""
+      const m = /filename="([^"]+)"/.exec(cd)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = m?.[1] ?? "settlements.xlsx"
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      toast({
+        title: "خروجی اکسل آماده شد",
+        description:
+          count === selected.size
+            ? `${toFaDigits(count)} تسویهٔ تأییدشده · جمع ${formatToman(selectedTotal)}`
+            : `${toFaDigits(count)} مورد از ${toFaDigits(selected.size)} انتخابی — فقط ردیف‌های تأییدشده خروجی می‌شوند.`,
+      })
+    } catch (e) {
+      toast({ title: "خطا", description: e instanceof Error ? e.message : errMessage(e), variant: "destructive" })
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  /* ─── خروجی PDF (صفحهٔ چاپ اختصاصی → Save as PDF مرورگر) ─── */
+  function exportPdf() {
+    if (selected.size === 0) return
+    const ids = encodeURIComponent([...selected.keys()].join(","))
+    const w = window.open(`/print/settlements?ids=${ids}`, "_blank")
+    if (!w) {
+      toast({
+        title: "پنجرهٔ چاپ باز نشد",
+        description: "مجوز پنجره‌های بازشدنی (Popup) مرورگر را برای این سایت فعال کنید.",
+        variant: "destructive",
+      })
+    }
+  }
+
   async function act(body: Record<string, unknown>, msg: string) {
     try {
       await api.post("/api/v1/admin/settlements", body)
@@ -97,6 +232,15 @@ export default function AdminSettlementsPage() {
       setDialog(null)
       setReason("")
       setPayTracking("")
+      // با «پرداخت‌شده» ثبت‌شدن، ردیف دیگر تأییدشده نیست → از انتخاب خروجی حذف شود
+      if (body.action === "mark_paid" && typeof body.settlementId === "string") {
+        const sid = body.settlementId
+        setSelected((prev) => {
+          const n = new Map(prev)
+          n.delete(sid)
+          return n
+        })
+      }
       api.get<SettlementsResponse>(fetchUrl()).then(setData).catch(() => {})
     } catch (e) {
       toast({ title: "خطا", description: errMessage(e), variant: "destructive" })
@@ -128,6 +272,42 @@ export default function AdminSettlementsPage() {
         </Select>
       </div>
 
+      {/* نوار خروجی — انتخاب تسویه‌های تأییدشده برای اکسل/PDF (EXPORT-SETTLE) */}
+      {!loading && (approvedOnPage.length > 0 || selected.size > 0) ? (
+        <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border bg-muted/40 px-4 py-3">
+          <label className="flex cursor-pointer select-none items-center gap-2 text-xs font-medium">
+            <Checkbox
+              checked={allApprovedOnPageSelected}
+              onCheckedChange={(c) => toggleAllOnPage(c === true)}
+              disabled={approvedOnPage.length === 0}
+              aria-label="انتخاب همهٔ تأییدشده‌های این صفحه"
+            />
+            انتخاب همهٔ تأییدشده‌های این صفحه
+          </label>
+          <span className="text-xs text-muted-foreground">
+            {selected.size > 0
+              ? `${toFaDigits(selected.size)} مورد انتخاب شد · جمع ${formatToman(selectedTotal)}`
+              : "برای خروجی اکسل/PDF، ردیف‌های تأییدشده را انتخاب کنید"}
+          </span>
+          <div className="flex-1" />
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="outline" disabled={selected.size === 0 || exporting} onClick={exportXlsx}>
+              <FileSpreadsheet className="ml-1 h-4 w-4" />
+              {exporting ? "در حال ساخت…" : "خروجی اکسل"}
+            </Button>
+            <Button size="sm" variant="outline" disabled={selected.size === 0} onClick={exportPdf}>
+              <FileText className="ml-1 h-4 w-4" />
+              خروجی PDF (چاپ)
+            </Button>
+            {selected.size > 0 ? (
+              <Button size="sm" variant="ghost" onClick={() => setSelected(new Map())}>
+                لغو انتخاب
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
       {loading && !data ? (
         <Skeleton className="h-72 rounded-xl" />
       ) : data ? (
@@ -137,22 +317,39 @@ export default function AdminSettlementsPage() {
             <CardContent className="p-0">
               <div className="divide-y">
                 {data.settlements.map((s) => (
-                  <div key={s.id} className="flex flex-col gap-2 p-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-bold">{formatToman(s.amount)}</span>
-                        <StatusBadge status={s.status} />
-                        <span className="text-sm">{s.applicant}</span>
-                        <span className="text-xs text-muted-foreground" dir="ltr">{s.applicantMobile}</span>
+                  <div
+                    key={s.id}
+                    className={`flex flex-col gap-2 p-4 lg:flex-row lg:items-center lg:justify-between ${selected.has(s.id) ? "bg-primary/5" : ""}`}
+                  >
+                    <div className="flex flex-1 items-start gap-3">
+                      {s.status === "APPROVED" ? (
+                        <Checkbox
+                          checked={selected.has(s.id)}
+                          onCheckedChange={(c) => toggleOne(s, c === true)}
+                          aria-label={`انتخاب ${s.applicant} برای خروجی`}
+                          className="mt-1"
+                        />
+                      ) : null}
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-bold">{formatToman(s.amount)}</span>
+                          <StatusBadge status={s.status} />
+                          <span className="text-sm">{s.applicant}</span>
+                          <span className="text-xs text-muted-foreground" dir="ltr">{s.applicantMobile}</span>
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          کد پیگیری: <span className="font-mono" dir="ltr">{s.trackingCode}</span> · {faDateTime(s.createdAt)}
+                        </div>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                          <span>{s.bankAccountName}</span>
+                          <span className="text-border">·</span>
+                          <CopyField value={s.bankCardNumber} label="شماره کارت" masked={maskCard(s.bankCardNumber)} />
+                          <span className="text-border">·</span>
+                          <CopyField value={s.bankSheba} label="شماره شبا" masked={maskSheba(s.bankSheba)} />
+                        </div>
+                        {s.paymentTrackingCode ? <div className="mt-0.5 text-xs text-emerald-700">کد پیگیری پرداخت: <span dir="ltr" className="font-mono">{s.paymentTrackingCode}</span>{s.paidAt ? ` · ${faDateTime(s.paidAt)}` : ""}</div> : null}
+                        {s.reviewNote ? <div className="mt-0.5 text-xs text-muted-foreground">توضیح: {s.reviewNote}</div> : null}
                       </div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        کد پیگیری: <span className="font-mono" dir="ltr">{s.trackingCode}</span> · {faDateTime(s.createdAt)}
-                      </div>
-                      <div className="mt-0.5 text-xs text-muted-foreground">
-                        {s.bankAccountName} · کارت <span dir="ltr" className="font-mono">{maskCard(s.bankCardNumber)}</span> · شبا <span dir="ltr" className="font-mono">{maskSheba(s.bankSheba)}</span>
-                      </div>
-                      {s.paymentTrackingCode ? <div className="mt-0.5 text-xs text-emerald-700">کد پیگیری پرداخت: <span dir="ltr" className="font-mono">{s.paymentTrackingCode}</span>{s.paidAt ? ` · ${faDateTime(s.paidAt)}` : ""}</div> : null}
-                      {s.reviewNote ? <div className="mt-0.5 text-xs text-muted-foreground">توضیح: {s.reviewNote}</div> : null}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {s.status === "PENDING" ? (
