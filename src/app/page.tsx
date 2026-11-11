@@ -283,7 +283,7 @@ export default async function HomePage() {
             همین حالا عضو حامی‌کارت شوید
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-primary-foreground/80">
-            ثبت‌نام رایگان است؛ طرح را هر زمان خواستید تهیه کنید. خریدار و دارندهٔ کارت می‌توانند افراد متفاوتی باشند.
+            ثبت‌نام رایگان است؛ طرح را هر زمان خواستید به نام خودتان تهیه کنید و کارت تخفیف شما صادر خواهد شد.
           </p>
           <Button asChild size="lg" className="mt-7 h-12 bg-gold px-8 text-[15px] text-sidebar hover:bg-gold/90">
             <Link href="/auth/login">ورود / ثبت‌نام</Link>

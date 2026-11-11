@@ -27,7 +27,7 @@ interface ProfileInfo {
 }
 
 // PAY/SELF: خرید طرح فقط برای خودِ کاربر — طرح و کارت به نام خود او ثبت می‌شود
-function isProfileComplete(p: ProfileInfo["profile"]): boolean {
+function isProfileComplete(p: ProfileInfo["profile"] | undefined): boolean {
   return !!(
     p?.nationalCode &&
     /^\d{10}$/.test(p.nationalCode) &&

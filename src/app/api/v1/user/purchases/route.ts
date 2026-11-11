@@ -82,10 +82,10 @@ export async function POST(req: NextRequest) {
 
   // REF-SYS/PAY/SELF: نام، نام خانوادگی و کد ملی خریدار برای ثبت طرح به نام خودش الزامی است
   const buyerProfile = await db.userProfile.findUnique({ where: { userId: auth.user.id } })
-  const nameOk =
-    !!buyerProfile?.firstName && buyerProfile.firstName.trim().length >= 2 &&
-    !!buyerProfile?.lastName && buyerProfile.lastName.trim().length >= 2
-  if (!buyerProfile?.nationalCode || !/^\d{10}$/.test(buyerProfile.nationalCode) || !nameOk) {
+  const selfFirstName = buyerProfile?.firstName?.trim() ?? ""
+  const selfLastName = buyerProfile?.lastName?.trim() ?? ""
+  const selfNationalCode = buyerProfile?.nationalCode ?? ""
+  if (!/^\d{10}$/.test(selfNationalCode) || selfFirstName.length < 2 || selfLastName.length < 2) {
     return fail(
       "برای خرید طرح به نام خودتان، تکمیل نام، نام خانوادگی و کد ملی (۱۰ رقم) در پروفایل الزامی است.",
       422,
@@ -94,17 +94,30 @@ export async function POST(req: NextRequest) {
   }
 
   // PAY/SELF: دارندهٔ طرح = خودِ خریدار؛ بر پایهٔ کد ملی یکتا پیدا یا ساخته می‌شود
-  // (اگر قبلاً مثلاً از طریق فروش نماینده کارتی با همین کد ملی ثبت شده باشد، همان هویت استفاده می‌شود)
+  // (اگر قبلاً مثلاً از طریق فروش نماینده کارتی با همین کد ملی ثبت شده باشد، همان هویت استفاده می‌شود
+  //  و نام/موبایل آن با پروفایل خودِ خریدار همگام می‌گردد تا طرح دقیقاً به نام خود او ثبت شود)
   let holder = await db.planHolder.findUnique({
-    where: { nationalCode: buyerProfile.nationalCode },
+    where: { nationalCode: selfNationalCode },
   })
+  if (holder) {
+    if (
+      holder.firstName !== selfFirstName ||
+      holder.lastName !== selfLastName ||
+      holder.mobile !== auth.user.mobile
+    ) {
+      holder = await db.planHolder.update({
+        where: { id: holder.id },
+        data: { firstName: selfFirstName, lastName: selfLastName, mobile: auth.user.mobile },
+      })
+    }
+  }
   if (!holder) {
     try {
       holder = await db.planHolder.create({
         data: {
-          firstName: buyerProfile.firstName.trim(),
-          lastName: buyerProfile.lastName.trim(),
-          nationalCode: buyerProfile.nationalCode,
+          firstName: selfFirstName,
+          lastName: selfLastName,
+          nationalCode: selfNationalCode,
           mobile: auth.user.mobile,
           createdByUserId: auth.user.id,
         },
@@ -112,7 +125,7 @@ export async function POST(req: NextRequest) {
     } catch {
       // رقابت هم‌زمان روی یکتایی کد ملی — دوباره پیدا کن
       holder = await db.planHolder.findUnique({
-        where: { nationalCode: buyerProfile.nationalCode },
+        where: { nationalCode: selfNationalCode },
       })
       if (!holder) return fail("خطا در ثبت دارنده طرح.", 500)
     }
