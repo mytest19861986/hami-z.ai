@@ -3,8 +3,36 @@ import { z } from "zod"
 import { ok, fail, requireUser, parseBody } from "@/lib/api"
 import { db } from "@/lib/db"
 import { genTrackingCode } from "@/lib/codes"
-import { notify } from "@/lib/audit"
+import { audit, notify } from "@/lib/audit"
 import { mobileSchema } from "@/lib/validators"
+
+// اطلاع‌رسانی درخواست خرید جدید به مدیران (PAY · ADMIN) —
+// زنگ اعلان‌های پنل ادمین و «رخدادهای سیستم» بلافاصله پس از ثبت درخواست به‌روز می‌شود.
+async function notifyAdminsOfNewPurchase(input: {
+  planTitle: string
+  trackingCode: string
+  buyerMobile: string
+  amount: number
+}) {
+  const admins = await db.user.findMany({
+    where: {
+      status: "ACTIVE",
+      roles: { some: { role: { name: { in: ["ADMIN", "SUPER_ADMIN"] } } } },
+    },
+    select: { id: true },
+  })
+  await Promise.all(
+    admins.map((a) =>
+      notify(
+        a.id,
+        "درخواست خرید جدید در انتظار تأیید",
+        `طرح «${input.planTitle}» با کد پیگیری ${input.trackingCode} برای خریدار ${input.buyerMobile} ثبت شد. درگاه پرداخت متصل نیست؛ پس از هماهنگی پرداخت، درخواست را تأیید یا رد کنید.`,
+        "WARNING",
+        "/admin/purchases?status=PENDING"
+      )
+    )
+  )
+}
 // خرید طرح (PAY-001..010 · AC-05 · AC-06) — بدون درگاه واقعی، تأیید دستی و صادقانه
 export async function GET() {
   const auth = await requireUser()
@@ -98,6 +126,19 @@ export async function POST(req: NextRequest) {
     },
   })
 
+  // ثبت رخداد + اطلاع به مدیران برای تأیید (ADMIN-013)
+  await audit(auth.user, "PURCHASE_CREATE", "PURCHASE", purchase.id, {
+    trackingCode: purchase.trackingCode,
+    planTitle: plan.title,
+    amount: purchase.amount,
+  })
+  await notifyAdminsOfNewPurchase({
+    planTitle: plan.title,
+    trackingCode: purchase.trackingCode,
+    buyerMobile: auth.user.mobile,
+    amount: purchase.amount,
+  })
+
   await notify(
     auth.user.id,
     "درخواست خرید ثبت شد",
@@ -111,6 +152,6 @@ export async function POST(req: NextRequest) {
     reused: false,
     paymentGatewayConnected: false,
     message:
-      "درگاه پرداخت واقعی هنوز متصل نشده است. پرداخت طبق هماهنگی خارج از سامانه و تأیید دستی مدیر انجام می‌شود؛ تا آن زمان طرح فعال نمی‌شود.",
+      "درگاه پرداخت آنلاین متصل نیست؛ درخواست شما با موفقیت ثبت شد و پس از پرداخت طبق هماهنگی و تأیید مدیر، طرح فعال خواهد شد.",
   })
 }

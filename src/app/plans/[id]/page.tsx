@@ -73,12 +73,12 @@ export default async function PlanDetailPage({ params }: { params: Promise<{ id:
               <div className="text-sm text-muted-foreground">مبلغ عضویت</div>
               <div className="font-display mt-1 text-3xl font-extrabold tabular-nums text-primary">{formatToman(plan.price)}</div>
               <Button asChild className="mt-5 h-11 w-full" size="lg">
-                <Link href={`/user/buy?planId=${plan.id}`}>تهیه این طرح</Link>
+                <Link href={`/user/buy?planId=${plan.id}`}>خرید طرح</Link>
               </Button>
               <div className="mt-4 flex items-start gap-2 rounded-lg border border-gold/40 bg-gold/10 p-3 text-xs leading-6 text-gold-deep">
                 <Info className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>
-                  درگاه پرداخت آنلاین هنوز متصل نشده است. خرید شما ثبت می‌شود و پس از پرداخت طبق هماهنگی و تأیید مدیر، طرح فعال خواهد شد. هیچ پرداخت جعلی «موفق» اعلام نمی‌شود.
+                  درگاه پرداخت آنلاین متصل نیست؛ درخواست شما ثبت می‌شود و پس از پرداخت طبق هماهنگی و تأیید مدیر، طرح فعال خواهد شد. هیچ پرداخت جعلی «موفق» اعلام نمی‌شود.
                 </span>
               </div>
               <ul className="mt-4 space-y-2 text-xs text-muted-foreground">

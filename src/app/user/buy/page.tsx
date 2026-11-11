@@ -88,8 +88,11 @@ export default function BuyPage() {
         <Card>
           <CardContent className="p-8 text-center">
             <CheckCircle2 className="mx-auto h-14 w-14 text-emerald-600" />
-            <h1 className="mt-4 text-xl font-bold">درخواست خرید ثبت شد</h1>
-            <p className="mt-2 text-sm text-muted-foreground">{done.message}</p>
+            <h1 className="mt-4 text-xl font-bold">درخواست خرید طرح ثبت شد</h1>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              {done.message ||
+                "درگاه پرداخت آنلاین متصل نیست؛ درخواست شما ثبت می‌شود و پس از پرداخت طبق هماهنگی و تأیید مدیر، طرح فعال خواهد شد."}
+            </p>
             <div className="mt-4 rounded-lg bg-muted/60 px-4 py-3">
               <span className="text-xs text-muted-foreground">کد پیگیری: </span>
               <span className="font-mono font-bold" dir="ltr">{done.trackingCode}</span>
@@ -110,7 +113,7 @@ export default function BuyPage() {
 
   return (
     <div>
-      <PageHeader title="تهیه طرح عضویت" description="خریدار و دارنده کارت می‌توانند اشخاص متفاوتی باشند (BR-06)." />
+      <PageHeader title="خرید طرح عضویت" description="خریدار و دارنده کارت می‌توانند اشخاص متفاوتی باشند (BR-06)." />
 
       {/* PAY: الزام کد ملی خریدار */}
       {profileInfo && !hasNationalCode ? (

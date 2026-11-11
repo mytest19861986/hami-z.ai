@@ -94,7 +94,7 @@ export default function UserDashboard() {
           <Button asChild>
             <Link href="/plans">
               <PlusCircle className="ml-1 h-4 w-4" />
-              تهیه طرح جدید
+              خرید طرح جدید
             </Link>
           </Button>
         }

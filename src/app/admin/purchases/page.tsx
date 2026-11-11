@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -42,9 +43,12 @@ interface PurchasesResponse {
 }
 
 export default function AdminPurchasesPage() {
+  const searchParams = useSearchParams()
   const [data, setData] = useState<PurchasesResponse | null>(null)
   const [q, setQ] = useState("")
-  const [status, setStatus] = useState("")
+  // فیلتر وضعیت از پارامتر آدرس (لینک داشبورد/اعلان: ?status=PENDING) خوانده می‌شود
+  const statusParam = searchParams.get("status") ?? ""
+  const [status, setStatus] = useState(statusParam)
   const [page, setPage] = useState(1)
   const [loadedKey, setLoadedKey] = useState("")
   const [rejectItem, setRejectItem] = useState<PurchaseRow | null>(null)
@@ -52,6 +56,13 @@ export default function AdminPurchasesPage() {
 
   const requestKey = JSON.stringify([q, status, page])
   const loading = requestKey !== loadedKey
+
+  // همگام‌سازی فیلتر با پارامتر آدرس هنگام باز شدن از لینک داشبورد/اعلان
+  useEffect(() => {
+    setStatus(statusParam)
+    setPage(1)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusParam])
 
   function fetchUrl() {
     const params = new URLSearchParams()

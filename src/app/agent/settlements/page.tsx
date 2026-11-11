@@ -115,7 +115,7 @@ export default function AgentSettlementsPage() {
                 <div>کارت: <span dir="ltr" className="font-mono">{maskCard(bankInfo!.cardNumber)}</span></div>
                 <div>شبا: <span dir="ltr" className="font-mono">{maskSheba(bankInfo!.sheba)}</span></div>
                 <div>صاحب حساب: {bankInfo!.bankAccountName}</div>
-                <Link href="/agent/bank" className="font-semibold text-primary underline">ویرایش اطلاعات بانکی</Link>
+                <Link href="/agent/profile" className="font-semibold text-primary underline">ویرایش اطلاعات بانکی</Link>
               </div>
             )}
 

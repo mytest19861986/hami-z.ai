@@ -1,19 +1,6 @@
-"use client"
+import { redirect } from "next/navigation"
 
-// داشبورد همکار فروش — ورود شماره کارت و شبا برای دریافت پورسانت (REF-SYS · SETTLE-002)
-import { BankInfoForm } from "@/components/shared/bank-info-form"
-import { PageHeader } from "@/components/shared/page-header"
-
+// اطلاعات بانکی به پروفایل همکار فروش منتقل شد (REF-SYS · SETTLE-002/003)
 export default function AgentBankPage() {
-  return (
-    <div>
-      <PageHeader
-        title="اطلاعات بانکی"
-        description="شماره کارت ۱۶ رقمی و شبا ۲۴ رقمی شما — بدون تکمیل این اطلاعات، پورسانت‌های فروش شما تأیید نمی‌شود و امکان درخواست تسویه ندارید."
-      />
-      <div className="max-w-2xl">
-        <BankInfoForm />
-      </div>
-    </div>
-  )
+  redirect("/agent/profile")
 }
