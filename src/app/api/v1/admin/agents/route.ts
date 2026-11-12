@@ -3,6 +3,7 @@ import { z } from "zod"
 import { ok, fail, requirePermission, parseBody } from "@/lib/api"
 import { db } from "@/lib/db"
 import { audit, notify } from "@/lib/audit"
+import { isValidProvinceCity } from "@/constants/geo"
 
 // مدیریت نمایندگان و مدارک (ADMIN-007..011 · AGENT-010 · AC-03)
 export async function GET(req: NextRequest) {
@@ -52,6 +53,8 @@ export async function GET(req: NextRequest) {
       id: a.id,
       userId: a.user.id,
       name: `${a.user.profile?.firstName ?? ""} ${a.user.profile?.lastName ?? ""}`.trim() || "—",
+      firstName: a.user.profile?.firstName ?? null,
+      lastName: a.user.profile?.lastName ?? null,
       mobile: a.user.mobile,
       businessName: a.businessName,
       description: a.description,
@@ -85,6 +88,18 @@ const actionSchema = z.discriminatedUnion("action", [
     documentId: z.string(),
     decision: z.enum(["APPROVE", "REJECT"]),
     reason: z.string().trim().max(400).optional().or(z.literal("")),
+  }),
+  // مشاهده / ویرایش اطلاعات — دکمهٔ «عملیات» در صفحهٔ نمایندگان ادمین
+  z.object({
+    action: z.literal("update_profile"),
+    agentId: z.string(),
+    firstName: z.string().trim().max(60, "نام حداکثر ۶۰ نویسه است.").optional(),
+    lastName: z.string().trim().max(60, "نام خانوادگی حداکثر ۶۰ نویسه است.").optional(),
+    businessName: z.string().trim().max(150, "نام کسب‌وکار حداکثر ۱۵۰ نویسه است.").optional(),
+    description: z.string().trim().max(600, "توضیحات حداکثر ۶۰۰ نویسه است.").optional(),
+    phone: z.string().trim().max(30, "تلفن حداکثر ۳۰ نویسه است.").optional(),
+    province: z.string().trim().max(60).optional(),
+    city: z.string().trim().max(60).optional(),
   }),
 ])
 
@@ -123,6 +138,50 @@ export async function POST(req: NextRequest) {
     }
     await notify(agent.userId, titles[data.decision], bodies[data.decision], data.decision === "APPROVE" ? "SUCCESS" : "INFO")
     return ok({ updated: true, status })
+  }
+
+  // update_profile — مشاهده / ویرایش اطلاعات (دکمهٔ «عملیات»)
+  if (data.action === "update_profile") {
+    const agent = await db.agent.findUnique({ where: { id: data.agentId } })
+    if (!agent) return fail("نماینده یافت نشد.", 404)
+    if (!isValidProvinceCity(data.province ?? null, data.city ?? null)) {
+      return fail("استان یا شهر انتخاب‌شده معتبر نیست.", 422)
+    }
+    await db.agent.update({
+      where: { id: agent.id },
+      data: {
+        businessName: data.businessName,
+        description: data.description,
+        phone: data.phone,
+        province: data.province,
+        city: data.city,
+      },
+    })
+
+    // نام و نام خانوادگی روی پروفایل کاربر نماینده (پروفایل ممکن است هنوز ساخته نشده باشد)
+    if (data.firstName !== undefined || data.lastName !== undefined) {
+      const profile = await db.userProfile.findUnique({ where: { userId: agent.userId } })
+      const nameData = {
+        ...(data.firstName !== undefined ? { firstName: data.firstName } : {}),
+        ...(data.lastName !== undefined ? { lastName: data.lastName } : {}),
+      }
+      if (profile) {
+        await db.userProfile.update({ where: { userId: agent.userId }, data: nameData })
+      } else {
+        await db.userProfile.create({ data: { userId: agent.userId, ...nameData } })
+      }
+    }
+
+    await audit(auth.user, "AGENT_PROFILE_UPDATE", "AGENT", agent.id, {
+      firstName: data.firstName,
+      lastName: data.lastName,
+      businessName: data.businessName,
+      description: data.description,
+      phone: data.phone,
+      province: data.province,
+      city: data.city,
+    })
+    return ok({ updated: true })
   }
 
   // review_document (AGENT-004/007/010)

@@ -3,7 +3,14 @@
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,12 +19,14 @@ import { Textarea } from "@/components/ui/textarea"
 import { PageHeader } from "@/components/shared/page-header"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Pagination } from "@/components/shared/pagination"
+import { AgentDetailsModal } from "@/components/admin/agent-details-modal"
+import { AgentEditModal } from "@/components/admin/agent-edit-modal"
 import { api, errMessage } from "@/lib/client"
 import { toast } from "@/hooks/use-toast"
 import { faDate } from "@/lib/jalali"
 import { toFaDigits } from "@/lib/jalali"
 import { label } from "@/constants/labels"
-import { Search } from "lucide-react"
+import { Search, ChevronDown, Pencil, Eye, XCircle, TriangleAlert } from "lucide-react"
 
 interface AgentDoc {
   id: string
@@ -30,6 +39,8 @@ interface AgentDoc {
 interface AgentRow {
   id: string
   name: string
+  firstName?: string | null
+  lastName?: string | null
   mobile: string
   businessName: string | null
   province: string | null
@@ -49,6 +60,8 @@ interface AgentsResponse {
   agents: AgentRow[]
 }
 
+type ReviewAction = { agent: AgentRow; decision: "REJECT" | "SUSPEND" }
+
 export default function AdminAgentsPage() {
   const [data, setData] = useState<AgentsResponse | null>(null)
   const [q, setQ] = useState("")
@@ -57,6 +70,10 @@ export default function AdminAgentsPage() {
   const [loadedKey, setLoadedKey] = useState("")
   const [detail, setDetail] = useState<AgentRow | null>(null)
   const [reason, setReason] = useState("")
+  const [detailsAgent, setDetailsAgent] = useState<AgentRow | null>(null)
+  const [editAgent, setEditAgent] = useState<AgentRow | null>(null)
+  const [reviewAction, setReviewAction] = useState<ReviewAction | null>(null)
+  const [actionBusy, setActionBusy] = useState(false)
 
   const requestKey = JSON.stringify([q, status, page])
   const loading = requestKey !== loadedKey
@@ -87,22 +104,50 @@ export default function AdminAgentsPage() {
     }
   }, [requestKey])
 
+  function refreshList() {
+    api
+      .get<AgentsResponse>(fetchUrl())
+      .then((d) => {
+        setData(d)
+        if (detail) {
+          const updated = d.agents.find((a) => a.id === detail.id)
+          if (updated) setDetail(updated)
+        }
+      })
+      .catch(() => {})
+  }
+
   async function action(body: Record<string, unknown>, successMsg = "انجام شد") {
     try {
       await api.post("/api/v1/admin/agents", body)
       toast({ title: successMsg })
-      api.get<AgentsResponse>(fetchUrl())
-        .then((d) => {
-          setData(d)
-          if (detail) {
-            const updated = d.agents.find((a) => a.id === detail.id)
-            if (updated) setDetail(updated)
-          }
-        })
-        .catch(() => {})
+      refreshList()
       setReason("")
     } catch (e) {
       toast({ title: "خطا", description: errMessage(e), variant: "destructive" })
+    }
+  }
+
+  // بازکردن دیالوگ رد/تعلیق (از منوی «عملیات» یا فوتر مودال جزئیات)
+  function openReview(agentId: string, decision: "REJECT" | "SUSPEND") {
+    const row = data?.agents.find((a) => a.id === agentId) ?? null
+    setDetailsAgent(null)
+    setReason("")
+    if (row) setReviewAction({ agent: row, decision })
+  }
+
+  // تأیید رد/تعلیق از منوی «عملیات» (دلیل الزامی است)
+  async function confirmReviewAction() {
+    if (!reviewAction) return
+    setActionBusy(true)
+    try {
+      await action(
+        { action: "review_agent", agentId: reviewAction.agent.id, decision: reviewAction.decision, reason },
+        reviewAction.decision === "REJECT" ? "نماینده رد شد" : "نماینده تعلیق شد"
+      )
+      setReviewAction(null)
+    } finally {
+      setActionBusy(false)
     }
   }
 
@@ -149,7 +194,46 @@ export default function AdminAgentsPage() {
                         <span dir="ltr">{a.mobile}</span> · {a.province ?? "—"}/{a.city ?? "—"} · {toFaDigits(a.customersCount)} مشتری · {toFaDigits(a.documents.length)} مدرک
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => setDetail(a)}>بررسی</Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setDetail(a)}>بررسی</Button>
+
+                      {/* منوی عملیات — مشاهده/ویرایش · مشاهده جزئیات · رد · تعلیق */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" aria-haspopup="menu">
+                            عملیات
+                            <ChevronDown className="size-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-60">
+                          <DropdownMenuItem onClick={() => setEditAgent(a)}>
+                            <Pencil />
+                            مشاهده / ویرایش اطلاعات
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setDetailsAgent(a)}>
+                            <Eye />
+                            مشاهده جزئیات
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            variant="destructive"
+                            disabled={a.status === "REJECTED"}
+                            onClick={() => openReview(a.id, "REJECT")}
+                          >
+                            <XCircle />
+                            رد
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-amber-600 focus:text-amber-600 [&_svg]:!text-amber-600"
+                            disabled={a.status !== "APPROVED"}
+                            onClick={() => openReview(a.id, "SUSPEND")}
+                          >
+                            <TriangleAlert />
+                            تعلیق
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -212,6 +296,50 @@ export default function AdminAgentsPage() {
                   <Textarea className="mt-2" rows={2} placeholder="دلیل رد/تعلیق (الزامی)" value={reason} onChange={(e) => setReason(e.target.value)} />
                 </div>
               </div>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      {/* عملیات ← مشاهده جزئیات (عملکرد هنگام فروش) */}
+      <AgentDetailsModal
+        agent={
+          detailsAgent
+            ? { id: detailsAgent.id, name: detailsAgent.name, businessName: detailsAgent.businessName, status: detailsAgent.status }
+            : null
+        }
+        onClose={() => setDetailsAgent(null)}
+        onReject={(id) => openReview(id, "REJECT")}
+        onSuspend={(id) => openReview(id, "SUSPEND")}
+      />
+
+      {/* عملیات ← مشاهده / ویرایش اطلاعات */}
+      <AgentEditModal agent={editAgent} onClose={() => setEditAgent(null)} onSaved={refreshList} />
+
+      {/* عملیات ← رد / تعلیق با ثبت دلیل */}
+      <Dialog open={!!reviewAction} onOpenChange={(o) => !o && setReviewAction(null)}>
+        <DialogContent className="max-w-md">
+          {reviewAction ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>{reviewAction.decision === "REJECT" ? "رد نماینده" : "تعلیق نماینده"}</DialogTitle>
+                <DialogDescription>
+                  {reviewAction.decision === "REJECT"
+                    ? `همکاری «${reviewAction.agent.name}» رد می‌شود؛ لطفاً دلیل را ثبت کنید.`
+                    : `همکاری «${reviewAction.agent.name}» به‌طور موقت تعلیق می‌شود؛ لطفاً دلیل را ثبت کنید.`}
+                </DialogDescription>
+              </DialogHeader>
+              <Textarea rows={3} placeholder="دلیل رد/تعلیق (الزامی)" value={reason} onChange={(e) => setReason(e.target.value)} />
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setReviewAction(null)} disabled={actionBusy}>انصراف</Button>
+                <Button
+                  variant={reviewAction.decision === "REJECT" ? "destructive" : "default"}
+                  disabled={reason.trim().length < 3 || actionBusy}
+                  onClick={confirmReviewAction}
+                >
+                  {actionBusy ? "در حال انجام…" : reviewAction.decision === "REJECT" ? "تأیید رد" : "تأیید تعلیق"}
+                </Button>
+              </DialogFooter>
             </>
           ) : null}
         </DialogContent>
