@@ -124,6 +124,9 @@ model Doctor {
   city              String?
   clinicPhone       String?
   bio               String?
+  address           String?  // آدرس پزشک (عملیات ← مشاهده/ویرایش اطلاعات)
+  education         String?  // تحصیلات
+  referrerDoctor    String?  // نام پزشک معرف
   discountPercent   Int?      // doctor-specific discount override; admin-set only
   status            String    @default("PENDING") // PENDING | APPROVED | REJECTED | SUSPENDED
   rejectReason      String?

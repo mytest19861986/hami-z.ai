@@ -3,6 +3,7 @@ import { z } from "zod"
 import { ok, fail, requirePermission, parseBody } from "@/lib/api"
 import { db } from "@/lib/db"
 import { audit, notify } from "@/lib/audit"
+import { isValidProvinceCity } from "@/constants/geo"
 
 // مدیریت پزشکان (ADMIN-007..010 · DOC-009/010/014 · AC-02)
 export async function GET(req: NextRequest) {
@@ -53,6 +54,8 @@ export async function GET(req: NextRequest) {
       id: d.id,
       userId: d.user.id,
       name: `${d.user.profile?.firstName ?? ""} ${d.user.profile?.lastName ?? ""}`.trim() || "—",
+      firstName: d.user.profile?.firstName ?? "",
+      lastName: d.user.profile?.lastName ?? "",
       mobile: d.user.mobile,
       medicalCouncilCode: d.medicalCouncilCode,
       specialty: d.specialty,
@@ -62,6 +65,9 @@ export async function GET(req: NextRequest) {
       city: d.city,
       clinicPhone: d.clinicPhone,
       bio: d.bio,
+      address: d.address,
+      education: d.education,
+      referrerDoctor: d.referrerDoctor,
       discountPercent: d.discountPercent,
       status: d.status,
       rejectReason: d.rejectReason,
@@ -88,6 +94,21 @@ const actionSchema = z.discriminatedUnion("action", [
     action: z.literal("set_public"),
     doctorId: z.string(),
     isPublic: z.boolean(),
+  }),
+  // عملیات ← مشاهده/ویرایش اطلاعات (فیلدهای پروندهٔ پزشک)
+  z.object({
+    action: z.literal("update_profile"),
+    doctorId: z.string(),
+    firstName: z.string().trim().max(60, "نام حداکثر ۶۰ نویسه است.").optional(),
+    lastName: z.string().trim().max(60, "نام خانوادگی حداکثر ۶۰ نویسه است.").optional(),
+    address: z.string().trim().max(300, "آدرس حداکثر ۳۰۰ نویسه است.").optional(),
+    education: z.string().trim().max(200, "تحصیلات حداکثر ۲۰۰ نویسه است.").optional(),
+    clinicName: z.string().trim().max(150, "نام مطب حداکثر ۱۵۰ نویسه است.").optional(),
+    clinicAddress: z.string().trim().max(400, "آدرس مطب حداکثر ۴۰۰ نویسه است.").optional(),
+    clinicPhone: z.string().trim().max(30, "تلفن مطب حداکثر ۳۰ نویسه است.").optional(),
+    referrerDoctor: z.string().trim().max(150, "نام پزشک معرف حداکثر ۱۵۰ نویسه است.").optional(),
+    province: z.string().trim().max(60).optional(),
+    city: z.string().trim().max(60).optional(),
   }),
 ])
 
@@ -137,7 +158,55 @@ export async function POST(req: NextRequest) {
   }
 
   // set_public (DOC-006 · ADMIN-010)
-  await db.doctor.update({ where: { id: doctor.id }, data: { isPublic: data.isPublic } })
-  await audit(auth.user, "DOCTOR_PUBLICITY_SET", "DOCTOR", doctor.id, { isPublic: data.isPublic })
+  if (data.action === "set_public") {
+    await db.doctor.update({ where: { id: doctor.id }, data: { isPublic: data.isPublic } })
+    await audit(auth.user, "DOCTOR_PUBLICITY_SET", "DOCTOR", doctor.id, { isPublic: data.isPublic })
+    return ok({ updated: true })
+  }
+
+  // update_profile — مشاهده/ویرایش اطلاعات (دکمهٔ «عملیات»)
+  if (!isValidProvinceCity(data.province ?? null, data.city ?? null)) {
+    return fail("استان یا شهر انتخاب‌شده معتبر نیست.", 422)
+  }
+  await db.doctor.update({
+    where: { id: doctor.id },
+    data: {
+      address: data.address,
+      education: data.education,
+      clinicName: data.clinicName,
+      clinicAddress: data.clinicAddress,
+      clinicPhone: data.clinicPhone,
+      referrerDoctor: data.referrerDoctor,
+      province: data.province,
+      city: data.city,
+    },
+  })
+
+  // نام و نام خانوادگی روی پروفایل کاربر پزشک (پروفایل ممکن است هنوز ساخته نشده باشد)
+  if (data.firstName !== undefined || data.lastName !== undefined) {
+    const profile = await db.userProfile.findUnique({ where: { userId: doctor.userId } })
+    const nameData = {
+      ...(data.firstName !== undefined ? { firstName: data.firstName } : {}),
+      ...(data.lastName !== undefined ? { lastName: data.lastName } : {}),
+    }
+    if (profile) {
+      await db.userProfile.update({ where: { userId: doctor.userId }, data: nameData })
+    } else {
+      await db.userProfile.create({ data: { userId: doctor.userId, ...nameData } })
+    }
+  }
+
+  await audit(auth.user, "DOCTOR_PROFILE_UPDATE", "DOCTOR", doctor.id, {
+    firstName: data.firstName,
+    lastName: data.lastName,
+    address: data.address,
+    education: data.education,
+    clinicName: data.clinicName,
+    clinicAddress: data.clinicAddress,
+    clinicPhone: data.clinicPhone,
+    referrerDoctor: data.referrerDoctor,
+    province: data.province,
+    city: data.city,
+  })
   return ok({ updated: true })
 }

@@ -3,7 +3,14 @@
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -12,16 +19,18 @@ import { Textarea } from "@/components/ui/textarea"
 import { PageHeader } from "@/components/shared/page-header"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Pagination } from "@/components/shared/pagination"
+import { DoctorStatsModal } from "@/components/admin/doctor-stats-modal"
+import { DoctorEditModal } from "@/components/admin/doctor-edit-modal"
 import { api, errMessage } from "@/lib/client"
 import { toast } from "@/hooks/use-toast"
-import { faDate } from "@/lib/jalali"
 import { toFaDigits } from "@/lib/jalali"
-import { label } from "@/constants/labels"
-import { Search } from "lucide-react"
+import { Search, ChartColumn, Pencil, XCircle, TriangleAlert, ChevronDown } from "lucide-react"
 
 interface DoctorRow {
   id: string
   name: string
+  firstName?: string | null
+  lastName?: string | null
   mobile: string
   medicalCouncilCode: string
   specialty: string
@@ -31,6 +40,9 @@ interface DoctorRow {
   city: string | null
   clinicPhone: string | null
   bio: string | null
+  address?: string | null
+  education?: string | null
+  referrerDoctor?: string | null
   discountPercent: number | null
   status: string
   rejectReason: string | null
@@ -46,6 +58,8 @@ interface DoctorsResponse {
   doctors: DoctorRow[]
 }
 
+type ReviewAction = { doctor: DoctorRow; decision: "REJECT" | "SUSPEND" }
+
 export default function AdminDoctorsPage() {
   const [data, setData] = useState<DoctorsResponse | null>(null)
   const [q, setQ] = useState("")
@@ -55,6 +69,10 @@ export default function AdminDoctorsPage() {
   const [detail, setDetail] = useState<DoctorRow | null>(null)
   const [reason, setReason] = useState("")
   const [discount, setDiscount] = useState("")
+  const [statsDoctor, setStatsDoctor] = useState<DoctorRow | null>(null)
+  const [editDoctor, setEditDoctor] = useState<DoctorRow | null>(null)
+  const [reviewAction, setReviewAction] = useState<ReviewAction | null>(null)
+  const [actionBusy, setActionBusy] = useState(false)
 
   const requestKey = JSON.stringify([q, status, page])
   const loading = requestKey !== loadedKey
@@ -85,15 +103,34 @@ export default function AdminDoctorsPage() {
     }
   }, [requestKey])
 
+  function refreshList() {
+    api.get<DoctorsResponse>(fetchUrl()).then(setData).catch(() => {})
+  }
+
   async function action(body: Record<string, unknown>, successMsg = "انجام شد") {
     try {
       await api.post("/api/v1/admin/doctors", body)
       toast({ title: successMsg })
       setDetail(null)
       setReason("")
-      api.get<DoctorsResponse>(fetchUrl()).then(setData).catch(() => {})
+      refreshList()
     } catch (e) {
       toast({ title: "خطا", description: errMessage(e), variant: "destructive" })
+    }
+  }
+
+  // تأیید رد/تعلیق از منوی «عملیات» (دلیل الزامی است)
+  async function confirmReviewAction() {
+    if (!reviewAction) return
+    setActionBusy(true)
+    try {
+      await action(
+        { action: "review", doctorId: reviewAction.doctor.id, decision: reviewAction.decision, reason },
+        reviewAction.decision === "REJECT" ? "پزشک رد شد" : "پزشک تعلیق شد"
+      )
+      setReviewAction(null)
+    } finally {
+      setActionBusy(false)
     }
   }
 
@@ -141,14 +178,50 @@ export default function AdminDoctorsPage() {
                         {d.specialty} · {d.clinicName ?? "—"} · {d.province ?? "—"}/{d.city ?? "—"} · کد نظام: <span dir="ltr">{d.medicalCouncilCode}</span> · {toFaDigits(d.visitsCount)} ویزیت
                       </div>
                     </div>
-                    {d.status === "PENDING" ? (
-                      <div className="flex gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {d.status === "PENDING" ? (
                         <Button size="sm" onClick={() => action({ action: "review", doctorId: d.id, decision: "APPROVE" }, "پزشک تأیید شد")}>تأیید</Button>
-                        <Button size="sm" variant="destructive" onClick={() => { setDetail(d); setReason("") }}>رد</Button>
-                      </div>
-                    ) : (
-                      <Button variant="outline" size="sm" onClick={() => { setDetail(d); setDiscount(d.discountPercent ? String(d.discountPercent) : "") }}>مدیریت</Button>
-                    )}
+                      ) : (
+                        <Button variant="outline" size="sm" onClick={() => { setDetail(d); setDiscount(d.discountPercent ? String(d.discountPercent) : "") }}>مدیریت</Button>
+                      )}
+
+                      {/* منوی عملیات — آمار و بررسی · مشاهده/ویرایش اطلاعات · رد · تعلیق */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" aria-haspopup="menu">
+                            عملیات
+                            <ChevronDown className="size-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-60">
+                          <DropdownMenuItem onClick={() => setStatsDoctor(d)}>
+                            <ChartColumn />
+                            آمار و بررسی
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setEditDoctor(d)}>
+                            <Pencil />
+                            مشاهده / ویرایش اطلاعات
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            variant="destructive"
+                            disabled={d.status === "REJECTED"}
+                            onClick={() => { setReviewAction({ doctor: d, decision: "REJECT" }); setReason("") }}
+                          >
+                            <XCircle />
+                            رد
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-amber-600 focus:text-amber-600 [&_svg]:!text-amber-600"
+                            disabled={d.status !== "APPROVED"}
+                            onClick={() => { setReviewAction({ doctor: d, decision: "SUSPEND" }); setReason("") }}
+                          >
+                            <TriangleAlert />
+                            تعلیق
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -203,6 +276,44 @@ export default function AdminDoctorsPage() {
                   </div>
                 ) : null}
               </div>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      {/* عملیات ← آمار و بررسی */}
+      <DoctorStatsModal
+        doctor={statsDoctor ? { id: statsDoctor.id, name: statsDoctor.name, specialty: statsDoctor.specialty } : null}
+        onClose={() => setStatsDoctor(null)}
+      />
+
+      {/* عملیات ← مشاهده / ویرایش اطلاعات */}
+      <DoctorEditModal doctor={editDoctor} onClose={() => setEditDoctor(null)} onSaved={refreshList} />
+
+      {/* عملیات ← رد / تعلیق با ثبت دلیل */}
+      <Dialog open={!!reviewAction} onOpenChange={(o) => !o && setReviewAction(null)}>
+        <DialogContent className="max-w-md">
+          {reviewAction ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>{reviewAction.decision === "REJECT" ? "رد پزشک" : "تعلیق پزشک"}</DialogTitle>
+                <DialogDescription>
+                  {reviewAction.decision === "REJECT"
+                    ? `همکاری «دکتر ${reviewAction.doctor.name}» رد می‌شود؛ لطفاً دلیل را ثبت کنید.`
+                    : `همکاری «دکتر ${reviewAction.doctor.name}» به‌طور موقت تعلیق می‌شود؛ لطفاً دلیل را ثبت کنید.`}
+                </DialogDescription>
+              </DialogHeader>
+              <Textarea rows={3} placeholder="دلیل رد/تعلیق (الزامی)" value={reason} onChange={(e) => setReason(e.target.value)} />
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setReviewAction(null)} disabled={actionBusy}>انصراف</Button>
+                <Button
+                  variant={reviewAction.decision === "REJECT" ? "destructive" : "default"}
+                  disabled={reason.trim().length < 3 || actionBusy}
+                  onClick={confirmReviewAction}
+                >
+                  {actionBusy ? "در حال انجام…" : reviewAction.decision === "REJECT" ? "تأیید رد" : "تأیید تعلیق"}
+                </Button>
+              </DialogFooter>
             </>
           ) : null}
         </DialogContent>
