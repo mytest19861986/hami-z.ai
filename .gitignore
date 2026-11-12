@@ -54,4 +54,8 @@ server.log
 # Skills directory
 /skills/
 # local database (runtime data — must not be published)
-/db/
+# SANDBOX-RECOVERY: دیتابیس ران‌تایم باید push نشود، اما اسنپ‌شات بازیابی در db/snapshots
+# تحت کنترل گیت است تا وقتی سندباکس بازنشانی شد داده‌ها از گیت بازیابی شوند.
+/db/*
+!/db/snapshots/
+!/db/snapshots/README.md
