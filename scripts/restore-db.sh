@@ -11,10 +11,16 @@
 #
 # استفاده:
 #   bash scripts/restore-db.sh                    # بازیابی از اسنپ‌شات
+#   bash scripts/restore-db.sh --no-serve         # فقط دیتابیس (بدون بالا آوردن سرور)
 #   bash scripts/restore-db.sh --update-snapshot  # تازه‌سازی اسنپ‌شات از دیتابیس فعلی
 #   bash scripts/restore-db.sh --check            # فقط بررسی سلامت دیتابیس فعلی
 # ============================================================================
 set -euo pipefail
+
+NO_SERVE=0
+for arg in "$@"; do
+  [ "$arg" = "--no-serve" ] && NO_SERVE=1
+done
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DB_PATH="$PROJECT_DIR/db/custom.db"
@@ -38,6 +44,7 @@ db_users()        { sql "SELECT COUNT(*) FROM User" 2>/dev/null || echo 0; }
 db_admin_ok()     { [ "$(sql "SELECT COUNT(*) FROM User WHERE mobile='$ADMIN_MOBILE' AND status='ACTIVE'" 2>/dev/null || echo 0)" = "1" ]; }
 
 ensure_dev_server() {
+  [ "$NO_SERVE" = "1" ] && return 0
   if curl -s -o /dev/null --max-time 3 http://localhost:3000/; then
     echo "✅ سرور dev از قبل روشن است"
     return 0
@@ -86,7 +93,7 @@ print('اسنپ‌شات ساخته شد')
     echo "   برای ماندگاری، کامیت کنید: git add db/snapshots && git commit -m 'chore: refresh db snapshot'"
     ;;
 
-  ""|--restore)
+  ""|--restore|--no-serve)
     echo "── بازیابی دیتابیس از اسنپ‌شات ──"
     if [ ! -f "$SNAPSHOT_PATH" ]; then
       echo "❌ اسنپ‌شات یافت نشد: $SNAPSHOT_PATH"
@@ -118,7 +125,7 @@ print('اسنپ‌شات ساخته شد')
     ensure_dev_server
     ;;
   *)
-    echo "استفاده: $0 [--restore | --update-snapshot | --check]"
+    echo "استفاده: $0 [--restore | --no-serve | --update-snapshot | --check]"
     exit 1
     ;;
 esac
