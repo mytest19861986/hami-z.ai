@@ -100,7 +100,7 @@ export function DoctorEditModal({
         province,
         city,
       })
-      toast({ title: "ذخیره شد", description: "اطلاعات پزشک با موفقیت بهروزرسانی شد." })
+      toast({ title: "ذخیره شد", description: "اطلاعات پزشک با موفقیت به روز رسانی شد." })
       onSaved()
       onClose()
     } catch (e) {

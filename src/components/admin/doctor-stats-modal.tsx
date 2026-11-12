@@ -116,7 +116,7 @@ export function DoctorStatsModal({
               </DialogDescription>
             </DialogHeader>
 
-            {/* بازهٔ زمانی + دکمهٔ بهروزرسانی (مطابق الگوی گزارش‌ها) */}
+            {/* بازهٔ زمانی + دکمهٔ به روز رسانی */}
             <div className="flex flex-wrap items-end gap-2">
               <div className="space-y-1">
                 <span className="block text-xs text-muted-foreground">از تاریخ</span>
@@ -136,7 +136,7 @@ export function DoctorStatsModal({
               </div>
               <Button onClick={refresh} disabled={loading}>
                 <RotateCw className={loading ? "size-4 animate-spin" : "size-4"} />
-                بهروزرسانی
+                به روز رسانی
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
