@@ -3,7 +3,14 @@
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -16,7 +23,9 @@ import { api, errMessage } from "@/lib/client"
 import { toast } from "@/hooks/use-toast"
 import { faDate } from "@/lib/jalali"
 import { ROLE_NAMES } from "@/constants/permissions"
-import { Search } from "lucide-react"
+import { UserEditModal } from "@/components/admin/user-edit-modal"
+import { UserDetailsModal } from "@/components/admin/user-details-modal"
+import { Search, ChevronDown, Pencil, Eye, TriangleAlert, Ban } from "lucide-react"
 
 interface UserRow {
   id: string
@@ -27,6 +36,11 @@ interface UserRow {
   nationalCode: string | null
   province: string | null
   city: string | null
+  address: string | null
+  postalCode: string | null
+  cardNumber: string | null
+  sheba: string | null
+  bankAccountName: string | null
   hasBankInfo: boolean
   roles: { name: string; title: string }[]
   doctorStatus: string | null
@@ -51,6 +65,10 @@ export default function AdminUsersPage() {
   const [loadedKey, setLoadedKey] = useState("")
   const [detail, setDetail] = useState<UserRow | null>(null)
   const [reason, setReason] = useState("")
+  const [detailsUser, setDetailsUser] = useState<UserRow | null>(null)
+  const [editUser, setEditUser] = useState<UserRow | null>(null)
+  const [statusAction, setStatusAction] = useState<{ user: UserRow; status: "SUSPENDED" | "BLOCKED" } | null>(null)
+  const [actionBusy, setActionBusy] = useState(false)
 
   const requestKey = JSON.stringify([q, role, status, page])
   const loading = requestKey !== loadedKey
@@ -78,18 +96,50 @@ export default function AdminUsersPage() {
     }
   }, [requestKey])
 
-  async function action(body: Record<string, unknown>) {
+  async function action(body: Record<string, unknown>, successMsg = "انجام شد") {
     try {
       await api.post("/api/v1/admin/users", body)
-      toast({ title: "انجام شد" })
+      toast({ title: successMsg })
       setDetail(null)
       setReason("")
-      api
-        .get<UsersResponse>(`/api/v1/admin/users?q=${encodeURIComponent(q)}&role=${role}&status=${status}&page=${page}`)
-        .then(setData)
-        .catch(() => {})
+      refreshList()
     } catch (e) {
       toast({ title: "خطا", description: errMessage(e), variant: "destructive" })
+    }
+  }
+
+  function refreshList() {
+    api
+      .get<UsersResponse>(`/api/v1/admin/users?q=${encodeURIComponent(q)}&role=${role}&status=${status}&page=${page}`)
+      .then((d) => {
+        setData(d)
+        if (detail) {
+          const updated = d.users.find((u) => u.id === detail.id)
+          if (updated) setDetail(updated)
+        }
+      })
+      .catch(() => {})
+  }
+
+  // بازکردن دیالوگ تعلیق/مسدودسازی (از منوی «عملیات»)
+  function openStatusChange(userId: string, status: "SUSPENDED" | "BLOCKED") {
+    const row = data?.users.find((u) => u.id === userId) ?? null
+    setReason("")
+    if (row) setStatusAction({ user: row, status })
+  }
+
+  // تأیید تعلیق/مسدودسازی از منوی «عملیات» (دلیل الزامی است)
+  async function confirmStatusAction() {
+    if (!statusAction) return
+    setActionBusy(true)
+    try {
+      await action(
+        { action: "set_status", userId: statusAction.user.id, status: statusAction.status, reason },
+        statusAction.status === "SUSPENDED" ? "کاربر تعلیق شد" : "کاربر مسدود شد"
+      )
+      setStatusAction(null)
+    } finally {
+      setActionBusy(false)
     }
   }
 
@@ -147,9 +197,48 @@ export default function AdminUsersPage() {
                         <span>· {faDate(u.createdAt)}</span>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => setDetail(u)}>
-                      جزئیات و اقدام
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setDetail(u)}>
+                        جزئیات و اقدام
+                      </Button>
+
+                      {/* منوی عملیات — مشاهده/ویرایش · مشاهده جزئیات · تعلیق · مسدودسازی */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm" aria-haspopup="menu">
+                            عملیات
+                            <ChevronDown className="size-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-60">
+                          <DropdownMenuItem onClick={() => setEditUser(u)}>
+                            <Pencil />
+                            مشاهده / ویرایش اطلاعات
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setDetailsUser(u)}>
+                            <Eye />
+                            مشاهده جزئیات
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-amber-600 focus:text-amber-600 [&_svg]:!text-amber-600"
+                            disabled={u.status !== "ACTIVE"}
+                            onClick={() => openStatusChange(u.id, "SUSPENDED")}
+                          >
+                            <TriangleAlert />
+                            تعلیق
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            variant="destructive"
+                            disabled={u.status !== "ACTIVE"}
+                            onClick={() => openStatusChange(u.id, "BLOCKED")}
+                          >
+                            <Ban />
+                            مسدودسازی
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -225,6 +314,53 @@ export default function AdminUsersPage() {
                   </div>
                 </div>
               </div>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      {/* عملیات ← مشاهده جزئیات (گزارش فعالیت کاربر) */}
+      <UserDetailsModal
+        user={
+          detailsUser
+            ? {
+                id: detailsUser.id,
+                name: [detailsUser.firstName, detailsUser.lastName].filter(Boolean).join(" ") || detailsUser.mobile,
+                mobile: detailsUser.mobile,
+                status: detailsUser.status,
+              }
+            : null
+        }
+        onClose={() => setDetailsUser(null)}
+      />
+
+      {/* عملیات ← مشاهده / ویرایش اطلاعات */}
+      <UserEditModal user={editUser} onClose={() => setEditUser(null)} onSaved={refreshList} />
+
+      {/* عملیات ← تعلیق / مسدودسازی با ثبت دلیل */}
+      <Dialog open={!!statusAction} onOpenChange={(o) => !o && setStatusAction(null)}>
+        <DialogContent className="max-w-md">
+          {statusAction ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>{statusAction.status === "SUSPENDED" ? "تعلیق کاربر" : "مسدودسازی کاربر"}</DialogTitle>
+                <DialogDescription>
+                  {statusAction.status === "SUSPENDED"
+                    ? `حساب «${[statusAction.user.firstName, statusAction.user.lastName].filter(Boolean).join(" ") || statusAction.user.mobile}» به‌طور موقت تعلیق می‌شود؛ لطفاً دلیل را ثبت کنید.`
+                    : `حساب «${[statusAction.user.firstName, statusAction.user.lastName].filter(Boolean).join(" ") || statusAction.user.mobile}» مسدود می‌شود؛ لطفاً دلیل را ثبت کنید.`}
+                </DialogDescription>
+              </DialogHeader>
+              <Textarea rows={3} placeholder="دلیل تعلیق/مسدودسازی (الزامی)" value={reason} onChange={(e) => setReason(e.target.value)} />
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setStatusAction(null)} disabled={actionBusy}>انصراف</Button>
+                <Button
+                  variant={statusAction.status === "BLOCKED" ? "destructive" : "default"}
+                  disabled={reason.trim().length < 3 || actionBusy}
+                  onClick={confirmStatusAction}
+                >
+                  {actionBusy ? "در حال انجام…" : statusAction.status === "SUSPENDED" ? "تأیید تعلیق" : "تأیید مسدودسازی"}
+                </Button>
+              </DialogFooter>
             </>
           ) : null}
         </DialogContent>
