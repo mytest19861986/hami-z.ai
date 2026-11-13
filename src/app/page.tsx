@@ -129,7 +129,7 @@ export default async function HomePage() {
           </div>
 
           {/* کارت برند پیش‌فرض (اسلاید اول همیشگی) + بنرهای اسلایدی ادمین (تنظیمات صفحه اصلی) */}
-          <div className="relative hidden lg:block">
+          <div className="relative">
             <HomepageBannerSlider
               banners={banners}
               recommendedPlan={
