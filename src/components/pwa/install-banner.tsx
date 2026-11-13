@@ -4,13 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { usePathname } from "next/navigation"
 import { BrandMark } from "@/components/shared/brand"
 import { Button } from "@/components/ui/button"
-import { Share, X, Smartphone, Sparkles } from "lucide-react"
+import { X, Smartphone, Sparkles } from "lucide-react"
 import {
-  detectIOS,
-  isAppInstalled,
+  installNow,
+  isRunningStandalone,
   markAppInstalled,
+  readInstalledFlag,
   subscribeInstallState,
-  triggerInstallPrompt,
 } from "@/lib/pwa-install"
 
 /* ─── ثابت‌ها ─── */
@@ -18,6 +18,7 @@ import {
 const DISMISS_KEY = "hk_install_banner_dismiss_until" // مهر زمانی پایان ابطال
 const DISMISS_MS = 3 * 24 * 60 * 60 * 1000 // ۳ روز
 const PROMPT_WAIT_MS = 10 * 1000 // حداکثر انتظار برای رویداد نصب مرورگر
+const INSTALL_WAIT_MS = 8 * 1000 // حداکثر انتظار بعد از کلیک (نصب خودکار)
 
 /** آیا صفحه داخل iframe اجرا می‌شود؟ (پنل پیش‌نمایش)
  *  Chrome در iframe هرگز beforeinstallprompt نمی‌دهد؛ تشخیص زودهنگام جلوی
@@ -36,21 +37,22 @@ function isInIframe(): boolean {
 /* ─── کامپوننت ─── */
 
 /**
- * نوار شناور هوشمند نصب موبایل (پایین صفحه، ثابت).
- * • اندروید/مرورگرهای استاندارد: شنود beforeinstallprompt + دکمهٔ «نصب اپلیکیشن حامی‌کارت»
- * • iOS/Safari: راهنمای تصویری دکمهٔ Share و «Add to Home Screen»
+ * نوار شناور هوشمند نصب موبایل (پایین صفحه، ثابت) — شرطی.
+ * • فقط وقتی ظاهر می‌شود که مرورگر رویداد beforeinstallprompt بدهد و هنوز
+ *   نصبی در کار نباشد؛ بعد از نصب موفق دیگر نمایش داده نمی‌شود (دکمهٔ
+ *   دائمی صفحهٔ اصلی همیشه در دسترس است).
+ * • کلیک روی «نصب اپلیکیشن حامی‌کارت» = نصب تمام‌خودکار: دیالوگ بومی
+ *   مرورگر باز می‌شود؛ اگر رویداد هنوز آماده نیست تا ۸ ثانیه صبر می‌کند و
+ *   به محض آماده‌شدن خودش باز می‌کند.
  * • بستن → ابطال ۳ روزه در localStorage؛ نصب موفق → مخفی‌سازی همیشگی
- * • داخل iframe (پنل پیش‌نمایش) یا اجرای standalone نمایش داده نمی‌شود
+ * • داخل iframe (پنل پیش‌نمایش)، اجرای standalone یا مسیرهای پنل نمایش داده نمی‌شود
  * • منبع رویداد نصب مشترک با دکمهٔ نصب صفحهٔ اصلی: src/lib/pwa-install.ts
  */
 export function InstallBanner() {
   const [visible, setVisible] = useState(false)
-  const [isIOS, setIsIOS] = useState(false)
-  const [available, setAvailable] = useState(false)
   const [installing, setInstalling] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const waitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const availableRef = useRef(false)
   const pathname = usePathname()
 
   // بنر نصب فقط برای صفحات عمومی معنا دارد؛ در پنل‌های داخلی (ادمین/کاربر/پزشک/نماینده/ورود)
@@ -73,10 +75,12 @@ export function InstallBanner() {
   useEffect(() => {
     if (isPanelRoute) return
     if (isInIframe()) return // داخل iframe رویداد نصب صادر نمی‌شود؛ بنر بی‌فایده است
+    if (isRunningStandalone()) return // داخل خود اپ نصب‌شده
     let dismissed = false
+    let availableNow = false
+    let installedNow = false
     try {
-      // اجرای standalone یا نصب قبلی → بنر معنا ندارد
-      if (isAppInstalled()) return
+      installedNow = readInstalledFlag()
       // دورهٔ ابطال ۳ روزهٔ کاربر
       const until = Number(localStorage.getItem(DISMISS_KEY) || 0)
       if (Number.isFinite(until) && Date.now() < until) return
@@ -85,41 +89,39 @@ export function InstallBanner() {
     }
 
     const show = () => setVisible(true)
+    const hide = () => setVisible(false)
 
-    const ios = detectIOS()
-    setIsIOS(ios)
-
-    // iOS: هرگز رویداد beforeinstallprompt نمی‌گیرد → مستقیم راهنما
-    if (ios) {
-      timerRef.current = setTimeout(show, 900)
-      return
-    }
-
-    // اندروید / استاندارد: اشتراک در وضعیت منبع مشترک نصب
+    // اشتراک در وضعیت منبع مشترک نصب.
+    // نکته: حتی اگر نصب شده باشیم مشترک می‌مانیم — رویداد نصبِ تازه یعنی
+    // مرورگر دوباره نصب را پیشنهاد می‌دهد (سناریوی «نصب کردم، اپ را حذف کردم»)
+    // و ماژول مشترک پرچم نصب را پاک می‌کند → بنر باید برگردد.
     const unsub = subscribeInstallState((state) => {
       if (state.installed) {
         dismissed = true
-        setVisible(false)
-        setAvailable(false)
+        hide()
         return
       }
-      availableRef.current = state.available
-      setAvailable(state.available)
+      if (state.standalone) {
+        dismissed = true
+        hide()
+        return
+      }
+      availableNow = state.available
       if (state.available && !dismissed) {
+        // رویداد تازه بعد از نصب قبلی → پرچم پاک شده، بنر دوباره مجاز است
+        dismissed = false
         if (timerRef.current) clearTimeout(timerRef.current)
         timerRef.current = setTimeout(show, 700)
       }
     })
 
     // اگر رویداد نصب ظرف مهلت مشخص نیامد (مرورگر نصب عرضه نمی‌کند)، بنر را
-    // نشان نمی‌دهیم — دکمهٔ نصب صفحهٔ اصلی راهنمای دستی دارد.
-    if (!availableRef.current) {
-      waitTimerRef.current = setTimeout(() => {
-        if (dismissed) return
-        if (availableRef.current) return // در همین لحظه رسید
-        cleanup()
-      }, PROMPT_WAIT_MS)
-    }
+    // نشان نمی‌دهیم — دکمهٔ دائمی صفحهٔ اصلی خودش صبر می‌کند و نصب می‌کند.
+    // اگر از قبل نصب شده باشد هم بنری نیست (رویداد تازه اگر بیاید، بالا برمی‌گرداند).
+    waitTimerRef.current = setTimeout(() => {
+      if (dismissed || availableNow || installedNow) return
+      cleanup()
+    }, PROMPT_WAIT_MS)
 
     function cleanup() {
       unsub()
@@ -137,16 +139,19 @@ export function InstallBanner() {
   }, [])
 
   const install = useCallback(async () => {
-    if (!available) return
+    if (installing) return
     try {
       setInstalling(true)
-      const outcome = await triggerInstallPrompt()
-      if (outcome === "accepted") markAppInstalled()
-      setVisible(false)
+      const outcome = await installNow(INSTALL_WAIT_MS)
+      if (outcome === "accepted") {
+        markAppInstalled()
+        setVisible(false)
+      }
+      // "dismissed" / "unavailable" → بنر می‌ماند؛ کاربر می‌تواند دوباره بزند یا ببندد
     } finally {
       setInstalling(false)
     }
-  }, [available])
+  }, [installing])
 
   if (!visible) return null
 
@@ -169,19 +174,11 @@ export function InstallBanner() {
               <Smartphone className="h-3.5 w-3.5 text-gold-deep" aria-hidden />
               حامی‌کارت روی گوشی شما
             </p>
-            {isIOS ? (
-              <p className="mt-1.5 text-justify text-xs leading-6 text-muted-foreground">
-                برای نصب حامی‌کارت روی آیفون، دکمهٔ اشتراک‌گذاری{" "}
-                <Share className="mx-0.5 inline h-3.5 w-3.5 -translate-y-px text-primary" aria-label="دکمه Share در سافاری" />{" "}
-                (Share) را بزنید و گزینهٔ «Add to Home Screen» را انتخاب کنید.
-              </p>
-            ) : (
-              <p className="mt-1.5 text-xs leading-6 text-muted-foreground">
-                <Sparkles className="ml-1 inline h-3.5 w-3.5 text-gold-deep" aria-hidden />
-                دسترسی سریع به کارت تخفیف، سهمیه‌ها و پزشکان طرف قرارداد — بدون
-                مرورگر و حتی با اینترنت ضعیف.
-              </p>
-            )}
+            <p className="mt-1.5 text-xs leading-6 text-muted-foreground">
+              <Sparkles className="ml-1 inline h-3.5 w-3.5 text-gold-deep" aria-hidden />
+              دسترسی سریع به کارت تخفیف، سهمیه‌ها و پزشکان طرف قرارداد — بدون
+              مرورگر و حتی با اینترنت ضعیف.
+            </p>
           </div>
           <button
             type="button"
@@ -194,26 +191,15 @@ export function InstallBanner() {
         </div>
 
         <div className="flex items-center gap-2 p-3.5 sm:p-4">
-          {isIOS ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="h-9 flex-1 text-xs font-semibold"
-              onClick={dismiss}
-            >
-              متوجه شدم
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              className="h-9 flex-1 gap-1.5 text-xs font-bold"
-              onClick={install}
-              disabled={installing || !available}
-            >
-              <Smartphone className="h-4 w-4" aria-hidden />
-              {installing ? "در حال باز کردن…" : "نصب اپلیکیشن حامی‌کارت"}
-            </Button>
-          )}
+          <Button
+            type="button"
+            className="h-9 flex-1 gap-1.5 text-xs font-bold"
+            onClick={install}
+            disabled={installing}
+          >
+            <Smartphone className="h-4 w-4" aria-hidden />
+            {installing ? "در حال باز کردن…" : "نصب اپلیکیشن حامی‌کارت"}
+          </Button>
           <Button
             type="button"
             variant="ghost"
