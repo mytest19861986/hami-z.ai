@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PageHeader } from "@/components/shared/page-header"
+import { HomepageSettings } from "@/components/admin/homepage-settings"
 import { api, errMessage } from "@/lib/client"
 import { toast } from "@/hooks/use-toast"
 import { formatToman } from "@/lib/format"
@@ -64,6 +65,9 @@ export default function AdminSettingsPage() {
           <span>شما با نقش مدیر عادی وارد شده‌اید؛ مقادیر حساس فقط قابل مشاهده است و ذخیره تغییرات نیازمند اختیار مدیر ارشد است.</span>
         </div>
       ) : null}
+
+      {/* تنظیمات صفحه اصلی — بنرهای اسلایدی جایگاه کارت در هیرو (مدیریت با مجوز settings) */}
+      <HomepageSettings />
 
       {groups.map((g) => {
         const rows = data.settings.filter((s) => s.group === g)

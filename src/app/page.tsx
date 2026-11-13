@@ -3,6 +3,7 @@ import { db } from "@/lib/db"
 import { PublicHeader, PublicFooter } from "@/components/shared/public-chrome"
 import { Button } from "@/components/ui/button"
 import { BrandMark, Shamseh } from "@/components/shared/brand"
+import { HomepageBannerSlider } from "@/components/home/homepage-banner-slider"
 import { ArrowLeft, Stethoscope, MapPin, ShieldCheck, Clock3, HeartHandshake, Star } from "lucide-react"
 import { formatToman } from "@/lib/format"
 import { toFaDigits, faDate } from "@/lib/jalali"
@@ -13,7 +14,7 @@ async function getData() {
   const now = new Date()
   // پزشکان منتخب: تأییدشده + عمومی؛ اولویت با پزشکان دارای نظرات تأییدشدهٔ بیشینه
   // (میانگین ستاره × لگاریتم تعداد رأی — رتبهٔ اعتماد؛ بدون رأی، بر اساس جدیدترین)
-  const [plans, doctorsRaw, activeMemberships, doctorCount] = await Promise.all([
+  const [plans, doctorsRaw, activeMemberships, doctorCount, banners] = await Promise.all([
     db.discountPlan.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" }, take: 3 }),
     db.doctor.findMany({
       where: { status: "APPROVED", isPublic: true },
@@ -26,6 +27,13 @@ async function getData() {
     }),
     db.membership.count({ where: { status: "ACTIVE", endDate: { gte: now } } }),
     db.doctor.count({ where: { status: "APPROVED", isPublic: true } }),
+    // بنرهای فعال صفحهٔ اصلی (تنظیمات صفحه اصلی · ADMIN-023)
+    db.homepageBanner.findMany({
+      where: { isActive: true },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+      select: { id: true, imageUrl: true, title: true, linkUrl: true },
+      take: 10,
+    }),
   ])
 
   // محاسبهٔ امتیاز و رتبه‌بندی (پزشکان با امتیاز بالا در بنر بالا می‌آیند)
@@ -51,7 +59,7 @@ async function getData() {
     .sort((a, b) => b.score - a.score)
     .slice(0, 6)
 
-  return { plans, doctors, activeMemberships, doctorCount }
+  return { plans, doctors, activeMemberships, doctorCount, banners }
 }
 
 const STEPS = [
@@ -62,7 +70,7 @@ const STEPS = [
 ]
 
 export default async function HomePage() {
-  const { plans, doctors, activeMemberships, doctorCount } = await getData()
+  const { plans, doctors, activeMemberships, doctorCount, banners } = await getData()
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -118,47 +126,52 @@ export default async function HomePage() {
             </dl>
           </div>
 
-          {/* کارت عضویت — ماکاپ برند */}
+          {/* کارت عضویت / بنرهای اسلایدی (تنظیمات صفحه اصلی) — با بنر فعال جایگزین می‌شود */}
           <div className="relative hidden lg:block">
-            <div className="relative mx-auto max-w-sm">
-              <div className="pointer-events-none absolute -top-16 -left-14 text-gold/50">
-                <Shamseh size={150} />
-              </div>
-              <div className="relative overflow-hidden rounded-xl bg-sidebar p-6 text-sidebar-foreground shadow-xl shadow-sidebar/25 rotate-[-2deg]">
-                <div className="bg-girih-light absolute inset-0" />
-                <div className="relative">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <BrandMark size={40} />
-                      <div className="leading-tight">
-                        <div className="font-display text-sm font-bold">کارت حامی‌کارت</div>
-                        <div className="mt-0.5 text-[10px] text-sidebar-foreground/60">عضویت فعال خدمات درمانی</div>
+            <HomepageBannerSlider
+              banners={banners}
+              fallback={
+                <div className="relative mx-auto max-w-sm">
+                  <div className="pointer-events-none absolute -top-16 -left-14 text-gold/50">
+                    <Shamseh size={150} />
+                  </div>
+                  <div className="relative overflow-hidden rounded-xl bg-sidebar p-6 text-sidebar-foreground shadow-xl shadow-sidebar/25 rotate-[-2deg]">
+                    <div className="bg-girih-light absolute inset-0" />
+                    <div className="relative">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <BrandMark size={40} />
+                          <div className="leading-tight">
+                            <div className="font-display text-sm font-bold">کارت حامی‌کارت</div>
+                            <div className="mt-0.5 text-[10px] text-sidebar-foreground/60">عضویت فعال خدمات درمانی</div>
+                          </div>
+                        </div>
+                        <span className="rounded-md bg-gold px-2 py-1 text-[10px] font-bold text-sidebar">عضویت</span>
+                      </div>
+                      <div className="mt-8 flex items-end justify-between border-t border-sidebar-border pt-4">
+                        <div>
+                          <div className="text-[10px] text-sidebar-foreground/70">دارندهٔ کارت</div>
+                          <div className="mt-1 text-sm font-semibold">عضو حامی‌کارت</div>
+                        </div>
+                        <div className="text-left">
+                          <div className="text-[10px] text-sidebar-foreground/70">تخفیف ویزیت</div>
+                          <div className="font-display mt-0.5 text-xl font-extrabold tabular-nums text-gold">۳۰٪</div>
+                        </div>
                       </div>
                     </div>
-                    <span className="rounded-md bg-gold px-2 py-1 text-[10px] font-bold text-sidebar">عضویت</span>
                   </div>
-                  <div className="mt-8 flex items-end justify-between border-t border-sidebar-border pt-4">
-                    <div>
-                      <div className="text-[10px] text-sidebar-foreground/70">دارندهٔ کارت</div>
-                      <div className="mt-1 text-sm font-semibold">عضو حامی‌کارت</div>
+                  {plans[1] ? (
+                    <div className="relative z-10 mx-auto -mt-3 mr-8 w-fit rotate-[1.5deg] rounded-lg border border-border bg-card px-4 py-3 shadow-lg">
+                      <div className="text-xs font-semibold">طرح پیشنهادی: {plans[1].title}</div>
+                      <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+                        <span className="font-semibold text-primary">{formatToman(plans[1].price)}</span>
+                        <span>· {toFaDigits(plans[1].durationDays)} روز اعتبار</span>
+                      </div>
                     </div>
-                    <div className="text-left">
-                      <div className="text-[10px] text-sidebar-foreground/70">تخفیف ویزیت</div>
-                      <div className="font-display mt-0.5 text-xl font-extrabold tabular-nums text-gold">۳۰٪</div>
-                    </div>
-                  </div>
+                  ) : null}
                 </div>
-              </div>
-              {plans[1] ? (
-                <div className="relative z-10 mx-auto -mt-3 mr-8 w-fit rotate-[1.5deg] rounded-lg border border-border bg-card px-4 py-3 shadow-lg">
-                  <div className="text-xs font-semibold">طرح پیشنهادی: {plans[1].title}</div>
-                  <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
-                    <span className="font-semibold text-primary">{formatToman(plans[1].price)}</span>
-                    <span>· {toFaDigits(plans[1].durationDays)} روز اعتبار</span>
-                  </div>
-                </div>
-              ) : null}
-            </div>
+              }
+            />
           </div>
         </div>
       </section>

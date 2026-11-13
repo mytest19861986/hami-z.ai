@@ -5,6 +5,9 @@ import { db } from "@/lib/db"
 import { isValidNationalCode, mobileSchema, nationalCodeSchema, toEnDigits } from "@/lib/validators"
 
 // ثبت مشتری فروش (SALE-001..003 · AGENT-DASH-003) — ثبت مشتری ≠ فروش قطعی (BR-11)
+// فیلتر بازه: from/to میلادی ISO (YYYY-MM-DD) با مرزهای روز +03:30 (هم‌قالب بقیهٔ فیلترهای بازه)
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
 export async function GET(req: NextRequest) {
   const auth = await requireUser()
   if ("response" in auth) return auth.response
@@ -15,12 +18,29 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams
   const q = (sp.get("q") ?? "").trim()
   const status = sp.get("status") ?? ""
+  const fromStr = (sp.get("from") ?? "").trim()
+  const toStr = (sp.get("to") ?? "").trim()
   const page = Math.max(1, parseInt(sp.get("page") ?? "1", 10) || 1)
   const perPage = 15
+
+  // اعتبارسنجی بازه (در صورت وجود): قالب ISO + از ≤ تا
+  let from: Date | null = null
+  let to: Date | null = null
+  if (fromStr || toStr) {
+    if (!DATE_RE.test(fromStr) || !DATE_RE.test(toStr)) {
+      return fail("بازه تاریخ نامعتبر است. هر دو تاریخ «از» و «تا» لازم است (YYYY-MM-DD).", 422)
+    }
+    from = new Date(`${fromStr}T00:00:00+03:30`)
+    to = new Date(`${toStr}T23:59:59.999+03:30`)
+    if (isNaN(from.getTime()) || isNaN(to.getTime()) || from > to) {
+      return fail("بازه تاریخ نامعتبر است: «از» باید قبل از «تا» باشد.", 422)
+    }
+  }
 
   const where = {
     agentId: agent.id,
     ...(status ? { status } : {}),
+    ...(from && to ? { createdAt: { gte: from, lte: to } } : {}),
     ...(q
       ? {
           OR: [

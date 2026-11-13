@@ -56,6 +56,10 @@ export default function AdminSalesPage() {
   const [loadedKey, setLoadedKey] = useState("")
   const [dialog, setDialog] = useState<{ mode: "card" | "payment" | "reject" | "return"; sale: SaleRow } | null>(null)
   const [cardNumber, setCardNumber] = useState("")
+  // صدور کارت: پیش‌فرض = تولید خودکار شماره یکتا؛ ادمین می‌تواند دستی وارد کند
+  const [cardMode, setCardMode] = useState<"AUTO" | "MANUAL">("AUTO")
+  const [cardChecking, setCardChecking] = useState(false)
+  const [cardTaken, setCardTaken] = useState(false)
   const [amount, setAmount] = useState("")
   const [payTracking, setPayTracking] = useState("")
   const [reason, setReason] = useState("")
@@ -219,7 +223,7 @@ export default function AdminSalesPage() {
                         </>
                       ) : null}
                       {s.nextTransitions.includes("CARD_ISSUED") ? (
-                        <Button size="sm" variant="outline" onClick={() => { setCardNumber(""); setDialog({ mode: "card", sale: s }) }}>صدور کارت</Button>
+                        <Button size="sm" variant="outline" onClick={() => { setCardNumber(""); setCardMode("AUTO"); setCardTaken(false); setDialog({ mode: "card", sale: s }) }}>صدور کارت</Button>
                       ) : null}
                       {s.nextTransitions.includes("SENT") ? (
                         <Button size="sm" variant="outline" onClick={() => act({ action: "transition", saleId: s.id, to: "SENT" }, "ارسال ثبت شد")}>ثبت ارسال</Button>
@@ -262,11 +266,83 @@ export default function AdminSalesPage() {
 
                 {dialog.mode === "card" ? (
                   <>
-                    <div className="space-y-1.5">
-                      <Label>شماره/شناسه کارت صادرشده *</Label>
-                      <Input dir="ltr" value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} className="text-left" placeholder="HK-2026-0001" />
+                    {/* حالت صدور: خودکار (تولید شماره یکتا) یا دستی (با چک یکتایی) */}
+                    <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted/50 p-1">
+                      <button
+                        type="button"
+                        onClick={() => { setCardMode("AUTO"); setCardNumber(""); setCardTaken(false) }}
+                        className={`rounded-md px-3 py-2 text-xs font-medium transition-colors ${cardMode === "AUTO" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                      >
+                        تولید خودکار (پیشنهادی)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setCardMode("MANUAL"); setCardTaken(false) }}
+                        className={`rounded-md px-3 py-2 text-xs font-medium transition-colors ${cardMode === "MANUAL" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                      >
+                        ورود دستی شماره
+                      </button>
                     </div>
-                    <Button className="w-full" disabled={!cardNumber.trim()} onClick={() => act({ action: "transition", saleId: dialog.sale.id, to: "CARD_ISSUED", cardNumber }, "صدور کارت ثبت شد")}>
+
+                    {cardMode === "AUTO" ? (
+                      <p className="rounded-lg bg-emerald-50 p-3 text-xs leading-5 text-emerald-800">
+                        سیستم هنگام ثبت، یک شماره کارت یکتای پیش‌فرض (مثل HK-2026-000001) که قبلاً استفاده نشده باشد به‌صورت خودکار اختصاص می‌دهد.
+                      </p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <Label>شماره/شناسه کارت صادرشده *</Label>
+                        <Input
+                          dir="ltr"
+                          value={cardNumber}
+                          onChange={(e) => {
+                            setCardNumber(e.target.value)
+                            setCardTaken(false)
+                            // چک یکتایی با توقف ۵۰۰ms پس از آخرین تایپ
+                            const v = e.target.value.trim()
+                            if (v.length >= 3) {
+                              setCardChecking(true)
+                              window.clearTimeout((window as unknown as { __cardCheckTimer?: number }).__cardCheckTimer)
+                              ;(window as unknown as { __cardCheckTimer?: number }).__cardCheckTimer = window.setTimeout(async () => {
+                                try {
+                                  const res = await api.get<{ taken: boolean }>(`/api/v1/admin/sales?checkCard=${encodeURIComponent(v)}`)
+                                  setCardTaken(res.taken)
+                                } catch { /* خطای چک مانع ثبت نیست؛ سرور هم دوباره چک می‌کند */ }
+                                finally { setCardChecking(false) }
+                              }, 500)
+                            }
+                          }}
+                          className="text-left"
+                          placeholder="HK-2026-0001"
+                        />
+                        <p className="text-xs">
+                          {cardChecking ? (
+                            <span className="text-muted-foreground">در حال بررسی یکتایی شماره…</span>
+                          ) : cardTaken ? (
+                            <span className="font-medium text-rose-600">این شماره قبلاً استفاده شده است؛ شماره دیگری وارد کنید.</span>
+                          ) : cardNumber.trim().length >= 3 ? (
+                            <span className="font-medium text-emerald-700">این شماره آزاد است. ✓</span>
+                          ) : (
+                            <span className="text-muted-foreground">یکتایی شماره هنگام تایپ بررسی می‌شود.</span>
+                          )}
+                        </p>
+                      </div>
+                    )}
+                    <Button
+                      className="w-full"
+                      disabled={cardMode === "MANUAL" && (cardChecking || cardTaken || cardNumber.trim().length < 3)}
+                      onClick={() =>
+                        act(
+                          {
+                            action: "transition",
+                            saleId: dialog.sale.id,
+                            to: "CARD_ISSUED",
+                            // حالت خودکار: cardNumber ارسال نمی‌شود تا سر شماره یکتا تولید کند
+                            ...(cardMode === "MANUAL" ? { cardNumber } : {}),
+                          },
+                          "صدور کارت ثبت شد"
+                        )
+                      }
+                    >
                       ثبت صدور
                     </Button>
                   </>

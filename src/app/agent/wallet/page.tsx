@@ -1,22 +1,25 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PageHeader } from "@/components/shared/page-header"
 import { StatCard } from "@/components/shared/stat-card"
 import { EmptyState } from "@/components/shared/empty-state"
+import { JalaliDateInput, JalaliDate, toIsoDate, formatJalaliNumeric } from "@/components/admin/jalali-date-input"
 import { api } from "@/lib/client"
 import { formatToman } from "@/lib/format"
 import { faDateTime } from "@/lib/jalali"
 import { label } from "@/constants/labels"
-import { Wallet, Clock, Lock } from "lucide-react"
+import { Wallet, Clock, Lock, CalendarDays } from "lucide-react"
 import { toFaDigits } from "@/lib/jalali"
 
 interface WalletData {
   withdrawableBalance: number
   heldBalance: number
   pendingCommission: number
+  filtered: boolean
   transactions: {
     id: string
     type: string
@@ -31,10 +34,18 @@ interface WalletData {
 
 export default function AgentWalletPage() {
   const [data, setData] = useState<WalletData | null>(null)
+  // فیلتر بازه تاریخ شمسی (UX-002): فقط گردش مالی را محدود می‌کند؛ مانده‌ها کل واقعی‌اند
+  const [range, setRange] = useState<{ from: JalaliDate | null; to: JalaliDate | null }>({ from: null, to: null })
 
   useEffect(() => {
-    api.get<WalletData>("/api/v1/agent/wallet").then(setData).catch(() => {})
-  }, [])
+    const params = new URLSearchParams()
+    if (range.from && range.to) {
+      params.set("from", toIsoDate(range.from))
+      params.set("to", toIsoDate(range.to))
+    }
+    const qs = params.toString()
+    api.get<WalletData>(`/api/v1/agent/wallet${qs ? `?${qs}` : ""}`).then(setData).catch(() => {})
+  }, [range])
 
   if (!data) {
     return <div className="space-y-4"><Skeleton className="h-24 w-full" /><Skeleton className="h-64 rounded-xl" /></div>
@@ -50,9 +61,37 @@ export default function AgentWalletPage() {
         <StatCard title="نگه‌داشته برای تسویه" value={formatToman(data.heldBalance)} tone="sky" icon={<Lock className="h-4 w-4" />} />
       </div>
 
-      <h2 className="mb-3 mt-8 text-lg font-bold">گردش مالی ({toFaDigits(data.transactions.length)} تراکنش)</h2>
+      {/* فیلتر بازه تاریخ شمسی گردش مالی (UX-002) */}
+      <div className="mt-6 flex flex-col gap-3 rounded-lg border bg-muted/30 p-3 lg:flex-row lg:items-center">
+        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+          <CalendarDays className="size-4" />
+          بازه تاریخ (شمسی)
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground">از تاریخ</span>
+          <JalaliDateInput aria-label="تاریخ شروع بازه" value={range.from} onChange={(from) => setRange((r) => ({ ...r, from }))} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground">تا تاریخ</span>
+          <JalaliDateInput aria-label="تاریخ پایان بازه" value={range.to} onChange={(to) => setRange((r) => ({ ...r, to }))} />
+        </div>
+        {(range.from || range.to) && (
+          <Button variant="ghost" size="sm" className="self-end lg:self-center" onClick={() => setRange({ from: null, to: null })}>
+            پاک‌کردن بازه
+          </Button>
+        )}
+        <div className="text-xs text-muted-foreground lg:mr-auto">
+          {range.from && range.to ? (
+            `نمایش گردش ${formatJalaliNumeric(range.from)} تا ${formatJalaliNumeric(range.to)}`
+          ) : "بدون محدودیت تاریخ (هر دو تاریخ را انتخاب کنید تا بازه اعمال شود)"}
+        </div>
+      </div>
+
+      <h2 className="mb-3 mt-8 text-lg font-bold">
+        گردش مالی ({toFaDigits(data.transactions.length)} تراکنش{data.filtered ? " در بازهٔ انتخابی" : ""})
+      </h2>
       {data.transactions.length === 0 ? (
-        <EmptyState title="گردشی ثبت نشده است" description="با تأیید پورسانت‌ها توسط مدیر، گردش کیف پول شما اینجا ثبت می‌شود." />
+        <EmptyState title="گردشی در این بازه ثبت نشده است" description="با تأیید پورسانت‌ها توسط مدیر، گردش کیف پول شما اینجا ثبت می‌شود." />
       ) : (
         <Card>
           <CardContent className="p-0">

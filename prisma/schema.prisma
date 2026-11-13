@@ -567,12 +567,28 @@ model Upload {
   id           String   @id @default(cuid())
   ownerUserId  String
   owner        User     @relation(fields: [ownerUserId], references: [id])
-  purpose      String // AGENT_DOC | AVATAR
+  purpose      String // AGENT_DOC | AVATAR | HOMEPAGE_BANNER
   fileName     String
   filePath     String
   mimeType     String?
   sizeBytes    Int?
   createdAt    DateTime @default(now())
+}
+
+// بنرهای اسلایدی صفحهٔ اصلی (تنظیمات صفحه اصلی · ADMIN-023) — جایگاه «عکس کارت» در هیرو
+model HomepageBanner {
+  id           String   @id @default(cuid())
+  uploadId     String?  // فایل فیزیکی (db/uploads/homepage-banners/…)؛ بنر لینک خارجی مقدار ندارد
+  imageUrl     String   // مسیر سرو داخلی (/api/v1/public/banners/IMG) یا URL کامل
+  title        String?  // عنوان اختیاری برای نمایش در اسلایدر
+  linkUrl      String?  // لینک اختیاری هنگام کلیک روی بنر
+  sortOrder    Int      @default(0) // ترتیب نمایش اسلایدها
+  isActive     Boolean  @default(true) // غیرفعال = در اسلایدر نمایش داده نمی‌شود ولی حذف نمی‌شود
+  createdById  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
 }
 
 model Setting {

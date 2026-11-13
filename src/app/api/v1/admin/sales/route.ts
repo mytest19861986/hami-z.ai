@@ -25,6 +25,14 @@ export async function GET(req: NextRequest) {
   if ("response" in auth) return auth.response
 
   const sp = req.nextUrl.searchParams
+
+  // چک یکتایی شماره کارت هنگام ورود دستی (صدور کارت) — پیش از ثبت
+  const checkCard = (sp.get("checkCard") ?? "").trim()
+  if (checkCard) {
+    const existing = await db.saleCustomer.findFirst({ where: { cardNumber: checkCard }, select: { id: true } })
+    return ok({ taken: !!existing })
+  }
+
   const status = sp.get("status") ?? ""
   const q = (sp.get("q") ?? "").trim()
   const fromStr = (sp.get("from") ?? "").trim()
@@ -142,9 +150,39 @@ export async function POST(req: NextRequest) {
 
         if (data.to === "APPROVED") { patch.decidedById = auth.user.id; patch.decidedAt = now }
         if (data.to === "CARD_ISSUED") {
-          patch.cardNumber = data.cardNumber || null
           patch.issuedAt = now
-          if (!data.cardNumber) throw new Error("CARD_NUMBER_REQUIRED")
+          // شماره کارت: دستی (با چک یکتایی) یا تولید خودکار یکتا
+          if (data.cardNumber) {
+            // یکتایی شماره دستی — شماره تکراری یعنی خطا (امکان گردش کار با دو کارت هم‌شماره وجود ندارد)
+            const dup = await tx.saleCustomer.findFirst({ where: { cardNumber: data.cardNumber, NOT: { id: sale.id } } })
+            if (dup) throw new Error("CARD_NUMBER_TAKEN")
+            patch.cardNumber = data.cardNumber
+          } else {
+            // تولید خودکار: HK-<سال میلادی جاری>-<۶ رقمی صفرجاپ> بر پایهٔ بیشینهٔ شماره‌های موجود
+            const year = String(now.getFullYear())
+            const prefix = `HK-${year}-`
+            const last = await tx.saleCustomer.findFirst({
+              where: { cardNumber: { startsWith: prefix } },
+              orderBy: { cardNumber: "desc" },
+              select: { cardNumber: true },
+            })
+            let next = 1
+            if (last) {
+              const lastNum = parseInt(last.cardNumber!.slice(prefix.length), 10)
+              if (!isNaN(lastNum)) next = lastNum + 1
+            }
+            // یکتایی نهایی در حلقه (محافظ در برابر هم‌زمانی)
+            for (let i = 0; i < 20; i++) {
+              const candidate = `${prefix}${String(next).padStart(6, "0")}`
+              const exists = await tx.saleCustomer.findFirst({ where: { cardNumber: candidate } })
+              if (!exists) {
+                patch.cardNumber = candidate
+                break
+              }
+              next++
+            }
+            if (!patch.cardNumber) throw new Error("CARD_NUMBER_GEN_FAILED")
+          }
         }
         if (data.to === "SENT") patch.sentAt = now
         if (data.to === "DELIVERED") patch.deliveredAt = now
@@ -273,6 +311,8 @@ export async function POST(req: NextRequest) {
       NOT_FOUND: "پرونده یافت نشد.",
       INVALID_TRANSITION: "این تغییر وضعیت برای وضعیت فعلی مجاز نیست.",
       CARD_NUMBER_REQUIRED: "برای صدور کارت، شماره کارت الزامی است.",
+      CARD_NUMBER_TAKEN: "این شماره کارت قبلاً برای پرونده دیگری استفاده شده است؛ شماره دیگری وارد کنید یا تولید خودکار را بگذارید.",
+      CARD_NUMBER_GEN_FAILED: "تولید شماره کارت یکتا ناموفق بود؛ دوباره تلاش کنید یا شماره را دستی وارد کنید.",
       ALREADY_FINALIZED: "این فروش قبلاً نهایی شده است.",
       NOT_RETURNABLE: "فقط فروش نهایی‌شده قابل مرجوع است.",
       COMMISSION_ALREADY_PAID: "پورسانت این فروش قبلاً تسویه شده است؛ مرجوعی نیازمند اصلاح دستی مدیر ارشد است.",
