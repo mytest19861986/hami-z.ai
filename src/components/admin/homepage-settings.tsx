@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { api, errMessage } from "@/lib/client"
 import { toast } from "@/hooks/use-toast"
 import { faDate } from "@/lib/jalali"
-import { ImageIcon, Plus, Trash2, EyeOff, Eye, ArrowUp, ArrowDown, Upload, Info } from "lucide-react"
+import { ImageIcon, Plus, Trash2, EyeOff, Eye, ArrowUp, ArrowDown, Upload, Info, Star } from "lucide-react"
 
 interface BannerRow {
   id: string
@@ -143,7 +143,38 @@ export function HomepageSettings() {
       <div className="mb-4 flex items-start gap-2 rounded-xl border border-sky-200 bg-sky-50 p-4 text-xs leading-6 text-sky-900">
         <Info className="mt-0.5 h-4 w-4 shrink-0" />
         <div>
-          <span className="font-bold">راهنمای سایز عکس بنر:</span> عرض پیشنهادی <span className="font-bold">۹۶۰ پیکسل</span> و ارتفاع <span className="font-bold">۷۲۰ پیکسل</span> (نسبت ۴:۳ — هم‌اندازهٔ جایگاه کارت در صفحه اصلی). فرمت JPG، PNG یا WebP با حجم حداکثر ۳ مگابایت. بنرها به‌صورت اسلایدی (چرخش خودکار هر ۵ ثانیه) نمایش داده می‌شوند؛ عکس‌های افقی بدون حاشیه بهترین نتیجه را دارند. اگر بنری فعال نباشد، کارت پیش‌فرض برند نمایش داده می‌شود.
+          <span className="font-bold">راهنمای سایز عکس بنر:</span> عرض پیشنهادی <span className="font-bold">۹۶۰ پیکسل</span> و ارتفاع <span className="font-bold">۷۲۰ پیکسل</span> (نسبت ۴:۳ — هم‌اندازهٔ جایگاه کارت در صفحه اصلی). فرمت JPG، PNG یا WebP با حجم حداکثر ۳ مگابایت. بنرهای شما به‌صورت اسلایدی (چرخش خودکار هر ۵ ثانیه) <span className="font-bold">بعد از کارت برند پیش‌فرض</span> نمایش داده می‌شوند؛ عکس‌های افقی بدون حاشیه بهترین نتیجه را دارند.
+        </div>
+      </div>
+
+      {/* اسلاید اول — کارت برند پیش‌فرض (ثابت و همیشگی) */}
+      <div className="mb-4 rounded-xl border border-gold/40 bg-gold/5 p-4">
+        <div className="flex flex-col items-center gap-4 sm:flex-row">
+          <div className="w-44 shrink-0 overflow-hidden rounded-lg border border-gold/30 bg-sidebar p-3 text-sidebar-foreground shadow-md">
+            <div className="bg-girih-light relative rounded-md p-2">
+              <div className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5">
+                  <ImageIcon className="h-4 w-4 text-gold" />
+                  <span className="font-display text-[11px] font-bold">کارت حامی‌کارت</span>
+                </span>
+                <span className="rounded bg-gold px-1.5 py-0.5 text-[9px] font-bold text-sidebar">عضویت</span>
+              </div>
+              <div className="mt-4 flex items-end justify-between border-t border-sidebar-border pt-2">
+                <span className="text-[9px] text-sidebar-foreground/70">دارندهٔ کارت</span>
+                <span className="font-display text-base font-extrabold text-gold">۳۰٪</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex-1 text-xs leading-6 text-muted-foreground">
+            <p className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+              <Star className="h-4 w-4 text-gold" />
+              اسلاید اول: کارت برند پیش‌فرض
+            </p>
+            <p className="mt-1">
+              این اسلاید همیشه اولین تصویر اسلایدر صفحه اصلی است و نمایش آن همیشگی است؛ بنرهایی که شما اضافه می‌کنید
+              پس از آن به‌صورت چرخشی نمایش داده می‌شوند. این اسلاید قابل حذف یا غیرفعال‌سازی نیست و نیازی به تنظیم ندارد.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -160,7 +191,7 @@ export function HomepageSettings() {
         <Skeleton className="h-40 rounded-xl" />
       ) : banners.length === 0 ? (
         <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-          هنوز بنری ثبت نشده است — صفحه اصلی کارت پیش‌فرض برند را نشان می‌دهد.
+          هنوز بنری ثبت نشده است — اسلایدر صفحه اصلی فقط کارت برند پیش‌فرض را نشان می‌دهد. اولین بنر خود را اضافه کنید.
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -170,7 +201,7 @@ export function HomepageSettings() {
                 { }
                 <img src={b.imageUrl} alt={b.title ?? "بنر"} className="h-full w-full object-cover" />
                 <span className="absolute right-2 top-2 rounded-md bg-background/90 px-1.5 py-0.5 text-[10px] font-bold tabular-nums">
-                  #{i + 1}
+                  #{i + 2}
                 </span>
                 {!b.isActive ? (
                   <span className="absolute left-2 top-2 rounded-md bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white">غیرفعال</span>
