@@ -78,13 +78,13 @@ export default async function HomePage() {
       <PublicHeader />
 
       {/* ── هیرو ── */}
-      <section className="relative overflow-hidden border-b border-border bg-girih">
+      <section className="relative overflow-hidden border-b border-border bg-card">
         <div className="pointer-events-none absolute -left-24 -top-24 text-primary/10">
           <Shamseh size={420} />
         </div>
         <div className="relative mx-auto grid max-w-6xl gap-12 px-4 py-16 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:py-24">
           <div>
-            <p className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-1.5 text-xs text-muted-foreground">
+            <p className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3.5 py-1.5 text-xs text-muted-foreground">
               <span className="h-1.5 w-1.5 rounded-full bg-gold" />
               سامانهٔ عضویت و تخفیف خدمات درمانی
             </p>
@@ -192,14 +192,14 @@ export default async function HomePage() {
                 key={plan.id}
                 className={
                   featured
-                    ? "relative flex flex-col rounded-lg border-2 border-gold/70 bg-card p-6 shadow-lg shadow-gold/10"
-                    : "relative flex flex-col rounded-lg border border-border bg-card p-6 transition-shadow hover:shadow-md"
+                    ? "relative flex flex-col rounded-3xl border-2 border-gold/70 bg-card p-6 shadow-gold-soft"
+                    : "relative flex flex-col rounded-3xl border border-border bg-card p-6 shadow-soft transition-shadow hover:shadow-float"
                 }
               >
-                <span className={featured ? "absolute -top-3.5 right-5 rounded-md bg-gold px-3 py-1 text-[11px] font-bold text-sidebar" : "hidden"}>
+                <span className={featured ? "absolute -top-3.5 right-5 rounded-full bg-gold px-3.5 py-1 text-[11px] font-bold text-sidebar shadow-gold-soft" : "hidden"}>
                   پیشنهاد ما
                 </span>
-                <div className={featured ? "absolute inset-x-0 top-0 h-1 rounded-t-lg bg-gold" : "absolute inset-x-0 top-0 h-1 rounded-t-lg bg-primary/25"} />
+                <div className={featured ? "absolute inset-x-0 top-0 h-1 rounded-t-3xl bg-gold" : "absolute inset-x-0 top-0 h-1 rounded-t-3xl bg-primary/25"} />
                 <h3 className="font-display text-lg font-bold">{plan.title}</h3>
                 <p className="mt-1.5 min-h-10 text-sm leading-6 text-muted-foreground">{plan.description}</p>
                 <div className="mt-5 flex items-baseline gap-1.5">
@@ -299,7 +299,7 @@ export default async function HomePage() {
       ) : null}
 
       {/* ── CTA پایانی ── */}
-      <section className="relative overflow-hidden bg-primary text-primary-foreground">
+      <section className="bg-brand-navy relative overflow-hidden text-primary-foreground">
         <div className="bg-girih-light absolute inset-0" />
         <div className="pointer-events-none absolute -left-16 -bottom-20 text-primary-foreground/20">
           <Shamseh size={280} />
@@ -312,7 +312,7 @@ export default async function HomePage() {
           <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-primary-foreground/80">
             ثبت‌نام رایگان است؛ طرح را هر زمان خواستید به نام خودتان تهیه کنید و کارت تخفیف شما صادر خواهد شد.
           </p>
-          <Button asChild size="lg" className="mt-7 h-12 bg-gold px-8 text-[15px] text-sidebar hover:bg-gold/90">
+          <Button asChild size="lg" className="mt-7 h-12 bg-brand-gold px-8 text-[15px] text-sidebar shadow-gold-soft hover:brightness-105">
             <Link href="/auth/login">ورود / ثبت‌نام</Link>
           </Button>
           <p className="mt-5 text-[11px] tabular-nums text-primary-foreground/60">آخرین به‌روزرسانی: {faDate(new Date())}</p>

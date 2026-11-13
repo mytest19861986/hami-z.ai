@@ -100,7 +100,7 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen">
       {/* پنل برند */}
-      <aside className="relative hidden w-[42%] flex-col justify-between overflow-hidden bg-sidebar p-10 text-sidebar-foreground lg:flex">
+      <aside className="bg-brand-navy relative hidden w-[42%] flex-col justify-between overflow-hidden p-10 text-sidebar-foreground lg:flex">
         <div className="bg-girih-light absolute inset-0" />
         <div className="pointer-events-none absolute -left-20 top-1/3 text-sidebar-foreground/15">
           <Shamseh size={340} />
@@ -128,7 +128,7 @@ export default function LoginPage() {
               { icon: <FileCheck2 className="h-4 w-4 text-gold" />, text: "سابقهٔ شفاف ویزیت‌ها و تخفیف‌ها" },
             ].map((it) => (
               <li key={it.text} className="flex items-center gap-3">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-accent">{it.icon}</span>
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sidebar-accent/70">{it.icon}</span>
                 <span className="text-sidebar-foreground/90">{it.text}</span>
               </li>
             ))}
@@ -152,12 +152,12 @@ export default function LoginPage() {
       </aside>
 
       {/* فرم ورود */}
-      <main className="relative flex flex-1 items-center justify-center bg-girih p-4 sm:p-8">
+      <main className="relative flex flex-1 items-center justify-center bg-brand-ice p-4 sm:p-8">
         <div className="w-full max-w-md">
           <div className="mb-8 text-center lg:text-right">
             <div className="flex justify-center lg:hidden">
               <Link href="/" aria-label="حامی‌کارت">
-                <BrandMark size={52} className="rounded-xl shadow-lg" />
+                <BrandMark size={52} className="rounded-2xl shadow-float" />
               </Link>
             </div>
             <h1 className="font-display mt-5 text-2xl font-extrabold lg:mt-0">ورود به حامی‌کارت</h1>
@@ -170,7 +170,7 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-6 shadow-sm sm:p-8">
+          <div className="rounded-3xl border border-border/60 bg-card/95 p-6 shadow-float backdrop-blur-sm sm:p-8">
             {step === "mobile" ? (
               <div className="space-y-4">
                 <div className="space-y-1.5">

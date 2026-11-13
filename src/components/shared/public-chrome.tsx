@@ -42,7 +42,7 @@ export function PublicHeader() {
   return (
     <header className="sticky top-0 z-40">
       {/* نوار بالایی */}
-      <div className="bg-primary text-primary-foreground">
+      <div className="bg-brand-navy text-primary-foreground">
         <div className="mx-auto hidden h-9 max-w-6xl items-center justify-between px-4 text-[11px] sm:flex">
           <span>پشتیبانی شنبه تا پنجشنبه، ۹ تا ۱۸</span>
           <span className="flex items-center gap-1.5" dir="ltr">
@@ -67,7 +67,7 @@ export function PublicHeader() {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "relative rounded-md px-3 py-2 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+                    "relative rounded-xl px-3 py-2 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
                     active && "bg-accent text-foreground font-medium"
                   )}
                 >
@@ -115,7 +115,7 @@ export function PublicHeader() {
                     href={item.href}
                     onClick={() => setOpen(false)}
                     className={cn(
-                      "rounded-md px-3 py-2.5 text-sm hover:bg-accent",
+                      "rounded-xl px-3 py-2.5 text-sm hover:bg-accent",
                       pathname === item.href && "bg-accent font-medium"
                     )}
                   >
@@ -144,7 +144,7 @@ export function PublicHeader() {
 
 export function PublicFooter() {
   return (
-    <footer className="mt-auto bg-sidebar text-sidebar-foreground">
+    <footer className="bg-brand-navy mt-auto text-sidebar-foreground">
       <div className="bg-girih-light">
         <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div>

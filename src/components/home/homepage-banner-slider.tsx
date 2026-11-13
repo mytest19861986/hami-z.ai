@@ -51,7 +51,7 @@ export function HomepageBannerSlider({
 
       {/* اسلاید ۱ (همیشگی) — کارت برند پیش‌فرض */}
       <div className={index === 0 ? "block" : "hidden"} aria-hidden={index !== 0}>
-        <div className="relative overflow-hidden rounded-xl bg-sidebar p-6 text-sidebar-foreground shadow-xl shadow-sidebar/25 rotate-[-2deg]">
+        <div className="bg-brand-navy relative overflow-hidden rounded-3xl p-6 text-sidebar-foreground shadow-float rotate-[-2deg]">
           <div className="bg-girih-light absolute inset-0" />
           <div className="relative">
             <div className="flex items-start justify-between">
@@ -62,7 +62,7 @@ export function HomepageBannerSlider({
                   <div className="mt-0.5 text-[10px] text-sidebar-foreground/60">عضویت فعال خدمات درمانی</div>
                 </div>
               </div>
-              <span className="rounded-md bg-gold px-2 py-1 text-[10px] font-bold text-sidebar">عضویت</span>
+              <span className="rounded-full bg-gold px-2.5 py-1 text-[10px] font-bold text-sidebar">عضویت</span>
             </div>
             <div className="mt-8 flex items-end justify-between border-t border-sidebar-border pt-4">
               <div>
@@ -77,7 +77,7 @@ export function HomepageBannerSlider({
           </div>
         </div>
         {recommendedPlan ? (
-          <div className="relative z-10 mx-auto -mt-3 mr-8 w-fit rotate-[1.5deg] rounded-lg border border-border bg-card px-4 py-3 shadow-lg">
+          <div className="relative z-10 mx-auto -mt-3 mr-8 w-fit rotate-[1.5deg] rounded-2xl border border-border bg-card px-4 py-3 shadow-soft">
             <div className="text-xs font-semibold">طرح پیشنهادی: {recommendedPlan.title}</div>
             <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground">
               <span className="font-semibold text-primary">{recommendedPlan.price}</span>
@@ -90,7 +90,7 @@ export function HomepageBannerSlider({
       {/* اسلایدهای بنر ادمین — فقط اسلاید فعال نمایان */}
       {banners.map((slide, i) => (
         <div key={slide.id} className={i === index - 1 ? "block" : "hidden"} aria-hidden={i !== index - 1}>
-          <div className="relative overflow-hidden rounded-xl shadow-xl shadow-sidebar/25">
+          <div className="relative overflow-hidden rounded-3xl shadow-float">
             {slide.linkUrl ? (
               <Link href={slide.linkUrl} target={slide.linkUrl.startsWith("http") ? "_blank" : undefined} rel="noreferrer">
                 <img src={slide.imageUrl} alt={slide.title ?? "بنر حامی‌کارت"} className="aspect-[4/3] w-full object-cover" />

@@ -47,79 +47,81 @@
 }
 
 /* ─────────────────────────────────────────────────────────────
-   هویت رنگی «لاجورد و زعفران» — کاغذ عاجی، لاجورد عمیق، زعفران
+   هویت رنگی جدید (v0.3.0) — «سرمه‌ای پرمیوم و طلایی» بر اساس مرجع
+   داشبورد سرمه‌ای عمیق + گرادیان، طلایی گرم، کرم عاجی، گوشه‌های
+   خیلی گرد و سایه‌های لطیف رنگی (سبک پزشکی-بانکی پرمیوم)
    ───────────────────────────────────────────────────────────── */
 :root {
-  --radius: 0.625rem;
-  --background: #f6f1e7;
-  --foreground: #1d2433;
+  --radius: 1rem;
+  --background: #faf7f0;
+  --foreground: #16337a;
   --card: #ffffff;
-  --card-foreground: #1d2433;
+  --card-foreground: #16337a;
   --popover: #ffffff;
-  --popover-foreground: #1d2433;
-  --primary: #2a4494;
-  --primary-foreground: #f8f4ea;
-  --secondary: #e8edf9;
-  --secondary-foreground: #223a7e;
-  --muted: #ede7da;
-  --muted-foreground: #5d6576;
-  --accent: #f0eadb;
-  --accent-foreground: #1d2433;
+  --popover-foreground: #16337a;
+  --primary: #0d47a1;
+  --primary-foreground: #ffffff;
+  --secondary: #e8f0fe;
+  --secondary-foreground: #0d47a1;
+  --muted: #f1f3f6;
+  --muted-foreground: #5a6b7e;
+  --accent: #eaf4fb;
+  --accent-foreground: #16337a;
   --destructive: #b94334;
-  --border: #dfd7c5;
-  --input: #d8cfbc;
-  --ring: #2a4494;
-  --gold: #d9942b;
+  --border: #e5e7eb;
+  --input: #d6dee8;
+  --ring: #0d47a1;
+  --gold: #d9b44a;
   --gold-deep: #a86f1a;
-  --chart-1: #2a4494;
-  --chart-2: #d9942b;
-  --chart-3: #3e7c5b;
+  --chart-1: #0d47a1;
+  --chart-2: #d9b44a;
+  --chart-3: #0e7c6b;
   --chart-4: #b26e3c;
   --chart-5: #6b7a99;
-  --sidebar: #1a2130;
-  --sidebar-foreground: #e8e3d5;
-  --sidebar-primary: #d9942b;
-  --sidebar-primary-foreground: #1a2130;
-  --sidebar-accent: #252e42;
-  --sidebar-accent-foreground: #f6f1e7;
-  --sidebar-border: rgba(246, 241, 231, 0.1);
-  --sidebar-ring: #d9942b;
+  --sidebar: #0a3d7c;
+  --sidebar-foreground: #e8eef8;
+  --sidebar-primary: #1565c0;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1565c0;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(232, 238, 248, 0.14);
+  --sidebar-ring: #d9b44a;
 }
 
 .dark {
-  --background: #151a26;
-  --foreground: #eae5d8;
-  --card: #1b2130;
-  --card-foreground: #eae5d8;
-  --popover: #1b2130;
-  --popover-foreground: #eae5d8;
-  --primary: #8fa5f0;
-  --primary-foreground: #141a28;
-  --secondary: #232c41;
-  --secondary-foreground: #c9d4f5;
-  --muted: #202838;
-  --muted-foreground: #9aa3b5;
-  --accent: #232c41;
-  --accent-foreground: #eae5d8;
+  --background: #0c1a33;
+  --foreground: #e8eef8;
+  --card: #12244a;
+  --card-foreground: #e8eef8;
+  --popover: #12244a;
+  --popover-foreground: #e8eef8;
+  --primary: #6da8ec;
+  --primary-foreground: #0c1a33;
+  --secondary: #1a3260;
+  --secondary-foreground: #c9dcf7;
+  --muted: #152a52;
+  --muted-foreground: #9db1d1;
+  --accent: #1a3260;
+  --accent-foreground: #e8eef8;
   --destructive: #d06a5b;
-  --border: rgba(234, 229, 216, 0.13);
-  --input: rgba(234, 229, 216, 0.18);
-  --ring: #8fa5f0;
-  --gold: #e3a64b;
-  --gold-deep: #d9942b;
-  --chart-1: #8fa5f0;
-  --chart-2: #e3a64b;
-  --chart-3: #6bab87;
-  --chart-4: #c98d61;
-  --chart-5: #8d99b3;
-  --sidebar: #11151f;
-  --sidebar-foreground: #e8e3d5;
-  --sidebar-primary: #e3a64b;
-  --sidebar-primary-foreground: #11151f;
-  --sidebar-accent: #1e2536;
-  --sidebar-accent-foreground: #f6f1e7;
-  --sidebar-border: rgba(246, 241, 231, 0.09);
-  --sidebar-ring: #e3a64b;
+  --border: rgba(232, 238, 248, 0.14);
+  --input: rgba(232, 238, 248, 0.2);
+  --ring: #6da8ec;
+  --gold: #e9c15c;
+  --gold-deep: #d9b44a;
+  --chart-1: #6da8ec;
+  --chart-2: #e9c15c;
+  --chart-3: #2ec4a4;
+  --chart-4: #d4915e;
+  --chart-5: #8d9ec4;
+  --sidebar: #081a38;
+  --sidebar-foreground: #e8eef8;
+  --sidebar-primary: #e9c15c;
+  --sidebar-primary-foreground: #081a38;
+  --sidebar-accent: #1a3260;
+  --sidebar-accent-foreground: #e8eef8;
+  --sidebar-border: rgba(232, 238, 248, 0.12);
+  --sidebar-ring: #e9c15c;
 }
 
 @layer base {
@@ -135,7 +137,7 @@
   }
   ::selection {
     background: var(--gold);
-    color: #1a2130;
+    color: #0a2250;
   }
   h1, h2, h3 {
     letter-spacing: -0.01em;
@@ -150,13 +152,38 @@
 
   /* نقش هندسی «شمسه» — شبکهٔ ستارهٔ هشت‌پر (کاشی‌کاری ایرانی) */
   .bg-girih {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%232a4494' stroke-opacity='0.08'%3E%3Crect x='15' y='15' width='26' height='26'/%3E%3Crect x='15' y='15' width='26' height='26' transform='rotate(45 28 28)'/%3E%3Ccircle cx='28' cy='28' r='3.5'/%3E%3C/g%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%230d47a1' stroke-opacity='0.07'%3E%3Crect x='15' y='15' width='26' height='26'/%3E%3Crect x='15' y='15' width='26' height='26' transform='rotate(45 28 28)'/%3E%3Ccircle cx='28' cy='28' r='3.5'/%3E%3C/g%3E%3C/svg%3E");
   }
   .bg-girih-light {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%23f6f1e7' stroke-opacity='0.07'%3E%3Crect x='15' y='15' width='26' height='26'/%3E%3Crect x='15' y='15' width='26' height='26' transform='rotate(45 28 28)'/%3E%3Ccircle cx='28' cy='28' r='3.5'/%3E%3C/g%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%23faf7f0' stroke-opacity='0.07'%3E%3Crect x='15' y='15' width='26' height='26'/%3E%3Crect x='15' y='15' width='26' height='26' transform='rotate(45 28 28)'/%3E%3Ccircle cx='28' cy='28' r='3.5'/%3E%3C/g%3E%3C/svg%3E");
   }
   .bg-girih-gold {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%23d9942b' stroke-opacity='0.12'%3E%3Crect x='15' y='15' width='26' height='26'/%3E%3Crect x='15' y='15' width='26' height='26' transform='rotate(45 28 28)'/%3E%3Ccircle cx='28' cy='28' r='3.5'/%3E%3C/g%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%23d9b44a' stroke-opacity='0.12'%3E%3Crect x='15' y='15' width='26' height='26'/%3E%3Crect x='15' y='15' width='26' height='26' transform='rotate(45 28 28)'/%3E%3Ccircle cx='28' cy='28' r='3.5'/%3E%3C/g%3E%3C/svg%3E");
+  }
+
+  /* گرادیان‌های برند (v0.3.0) — سرمه‌ای عمیق و طلایی گرم مطابق مرجع */
+  .bg-brand-navy {
+    background-image: linear-gradient(135deg, #123b7a 0%, #0a2250 100%);
+  }
+  .bg-brand-blue {
+    background-image: linear-gradient(135deg, #1e56b8 0%, #123b7a 100%);
+  }
+  .bg-brand-gold {
+    background-image: linear-gradient(135deg, #f2c94c 0%, #d9a62e 100%);
+  }
+  .bg-brand-ice {
+    background-image: linear-gradient(160deg, #eaf4fb 0%, #d6ecf7 100%);
+  }
+
+  /* سایه‌های لطیف رنگی مطابق مرجع (به‌جای سایهٔ خاکستری) */
+  .shadow-soft {
+    box-shadow: 0 8px 24px rgba(13, 71, 161, 0.08);
+  }
+  .shadow-float {
+    box-shadow: 0 10px 30px rgba(30, 79, 160, 0.12);
+  }
+  .shadow-gold-soft {
+    box-shadow: 0 10px 30px rgba(201, 150, 46, 0.25);
   }
 
   /* خط زیرین زعفرانی برای کلمهٔ کلیدی تیترها */
