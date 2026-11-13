@@ -47,7 +47,7 @@ export interface AuthUser {
   } | null
   roles: string[]
   permissions: string[]
-  doctor?: { id: string; status: string } | null
+  doctor?: { id: string; status: string; avatarUrl: string | null } | null
   agent?: { id: string; status: string } | null
 }
 
@@ -160,7 +160,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
     include: {
       profile: true,
       roles: { include: { role: { include: { permissions: { include: { permission: true } } } } } },
-      doctor: { select: { id: true, status: true } },
+      doctor: { select: { id: true, status: true, avatarUrl: true } },
       agent: { select: { id: true, status: true } },
     },
   })
@@ -190,7 +190,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
       : null,
     roles,
     permissions,
-    doctor: user.doctor ? { id: user.doctor.id, status: user.doctor.status } : null,
+    doctor: user.doctor ? { id: user.doctor.id, status: user.doctor.status, avatarUrl: user.doctor.avatarUrl } : null,
     agent: user.agent ? { id: user.agent.id, status: user.agent.status } : null,
   }
 }

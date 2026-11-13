@@ -25,6 +25,7 @@ interface DoctorItem {
   clinicPhone: string | null
   bio: string | null
   discountPercent: number | null
+  avatarUrl: string | null
 }
 
 interface DoctorsResponse {
@@ -189,9 +190,15 @@ export default function DoctorsPage() {
                   <Card key={d.id} className="h-full">
                     <CardContent className="flex h-full flex-col p-5">
                       <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h3 className="font-semibold">دکتر {d.name}</h3>
-                          <div className="mt-0.5 text-sm text-primary">{d.specialty}</div>
+                        <div className="flex items-center gap-3">
+                          {d.avatarUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={d.avatarUrl} alt={`عکس ${d.name}`} className="h-12 w-12 shrink-0 rounded-full object-cover ring-1 ring-border" />
+                          ) : null}
+                          <div>
+                            <h3 className="font-semibold">دکتر {d.name}</h3>
+                            <div className="mt-0.5 text-sm text-primary">{d.specialty}</div>
+                          </div>
                         </div>
                         {d.discountPercent ? (
                           <span className="rounded-md bg-secondary px-2.5 py-1 text-[11px] font-bold tabular-nums text-secondary-foreground">

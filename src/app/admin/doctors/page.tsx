@@ -69,6 +69,7 @@ interface DoctorRow {
   status: string
   rejectReason: string | null
   isPublic: boolean
+  avatarUrl?: string | null
   visitsCount: number
   ratingAvg: number | null
   ratingCount: number
@@ -191,6 +192,10 @@ export default function AdminDoctorsPage() {
                   <div key={d.id} className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
+                        {d.avatarUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={d.avatarUrl} alt={`عکس ${d.name}`} className="h-9 w-9 rounded-full object-cover ring-1 ring-border" />
+                        ) : null}
                         <button className="text-sm font-semibold hover:text-primary" onClick={() => { setDetail(d); setDiscount(d.discountPercent ? String(d.discountPercent) : "") }}>
                           دکتر {d.name}
                         </button>

@@ -127,6 +127,7 @@ model Doctor {
   address           String?  // آدرس پزشک (عملیات ← مشاهده/ویرایش اطلاعات)
   education         String?  // تحصیلات
   referrerDoctor    String?  // نام پزشک معرف
+  avatarUrl         String?  // عکس پروفایل پزشک — سرو داخلی /api/v1/public/avatars/<file> (DOCTOR-DASH-007)
   discountPercent   Int?      // doctor-specific discount override; admin-set only
   status            String    @default("PENDING") // PENDING | APPROVED | REJECTED | SUSPENDED
   rejectReason      String?
@@ -567,7 +568,7 @@ model Upload {
   id           String   @id @default(cuid())
   ownerUserId  String
   owner        User     @relation(fields: [ownerUserId], references: [id])
-  purpose      String // AGENT_DOC | AVATAR | HOMEPAGE_BANNER
+  purpose      String // AGENT_DOC | AVATAR | HOMEPAGE_BANNER | DOCTOR_AVATAR
   fileName     String
   filePath     String
   mimeType     String?

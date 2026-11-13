@@ -14,6 +14,10 @@ const createSchema = z.object({
   note: z.string().trim().max(500, "یادداشت حداکثر ۵۰۰ نویسه است.").optional().or(z.literal("")),
 })
 
+// فیلتر بازه تاریخ: from/to میلادی ISO (YYYY-MM-DD) با مرزهای روز +03:30
+// (هم‌قالب admin/purchases و agent/customers — سمت کلاینت تقویم شمسی این مقادیر را می‌سازد)
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
 export async function GET(req: NextRequest) {
   const auth = await requireUser()
   if ("response" in auth) return auth.response
@@ -23,10 +27,30 @@ export async function GET(req: NextRequest) {
 
   const sp = req.nextUrl.searchParams
   const status = sp.get("status") ?? ""
+  const fromStr = (sp.get("from") ?? "").trim()
+  const toStr = (sp.get("to") ?? "").trim()
   const page = Math.max(1, parseInt(sp.get("page") ?? "1", 10) || 1)
   const perPage = 20
 
-  const where = { doctorId: doctor.id, ...(status ? { status } : {}) }
+  // اعتبارسنجی بازه (در صورت وجود): قالب ISO + از ≤ تا (DOCTOR-DASH-005)
+  let from: Date | null = null
+  let to: Date | null = null
+  if (fromStr || toStr) {
+    if (!DATE_RE.test(fromStr) || !DATE_RE.test(toStr)) {
+      return fail("بازه تاریخ نامعتبر است. هر دو تاریخ «از» و «تا» لازم است (YYYY-MM-DD).", 422)
+    }
+    from = new Date(`${fromStr}T00:00:00+03:30`)
+    to = new Date(`${toStr}T23:59:59.999+03:30`)
+    if (isNaN(from.getTime()) || isNaN(to.getTime()) || from > to) {
+      return fail("بازه تاریخ نامعتبر است: «از» باید قبل از «تا» باشد.", 422)
+    }
+  }
+
+  const where = {
+    doctorId: doctor.id,
+    ...(status ? { status } : {}),
+    ...(from && to ? { visitDate: { gte: from, lte: to } } : {}),
+  }
   const [total, visits] = await Promise.all([
     db.visit.count({ where }),
     db.visit.findMany({

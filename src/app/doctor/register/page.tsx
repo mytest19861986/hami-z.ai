@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { PageHeader } from "@/components/shared/page-header"
 import { ProvinceCitySelect } from "@/components/shared/province-city-select"
 import { StatusBadge } from "@/components/shared/status-badge"
+import { DoctorAvatarUpload } from "@/components/shared/doctor-avatar-upload"
 import { api, errMessage } from "@/lib/client"
 import { toast } from "@/hooks/use-toast"
 import { SPECIALTIES } from "@/constants/specialties"
@@ -24,6 +25,7 @@ interface DoctorStatus {
   city: string | null
   clinicPhone: string | null
   bio: string | null
+  avatarUrl: string | null
   status: string
   rejectReason: string | null
 }
@@ -114,7 +116,23 @@ export default function DoctorRegisterPage() {
       ) : null}
 
       <Card>
-        <CardContent className="grid gap-4 p-6 sm:grid-cols-2">
+        <CardContent className="space-y-6 p-6">
+          {/* عکس پروفایل (DOCTOR-DASH-007) — مستقل از وضعیت درخواست قابل تغییر است */}
+          {submitted ? (
+            <div className="rounded-xl border bg-muted/40 p-4">
+              <h3 className="mb-3 text-sm font-semibold">عکس پروفایل</h3>
+              <DoctorAvatarUpload
+                avatarUrl={(existing as DoctorStatus).avatarUrl}
+                onUpdated={(avatarUrl) => {
+                  setExisting({ ...(existing as DoctorStatus), avatarUrl } as DoctorStatus)
+                  // هدر پنل هم عکس را از auth/me می‌خواند؛ بدون reload صفحه تازه نمی‌شود
+                  window.location.reload()
+                }}
+              />
+            </div>
+          ) : null}
+
+          <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <label className="text-sm font-medium">کد نظام پزشکی *</label>
             <Input dir="ltr" inputMode="numeric" value={form.medicalCouncilCode} onChange={(e) => setForm({ ...form, medicalCouncilCode: e.target.value.replace(/\D/g, "") })} className="text-left" disabled={submitted} />
@@ -164,6 +182,7 @@ export default function DoctorRegisterPage() {
               </Button>
             </div>
           ) : null}
+          </div>
         </CardContent>
       </Card>
     </div>

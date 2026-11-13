@@ -47,6 +47,7 @@ export async function GET(req: NextRequest) {
         clinicPhone: true,
         bio: true,
         discountPercent: true,
+        avatarUrl: true,
         user: { select: { profile: { select: { firstName: true, lastName: true } } } },
       },
     }),
@@ -67,6 +68,7 @@ export async function GET(req: NextRequest) {
       clinicPhone: d.clinicPhone,
       bio: d.bio,
       discountPercent: d.discountPercent,
+      avatarUrl: d.avatarUrl,
     })),
     meta: { specialties: SPECIALTIES, provinces: PROVINCE_NAMES },
   })

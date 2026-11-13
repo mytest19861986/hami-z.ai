@@ -20,7 +20,7 @@ export interface PanelUser {
   permissions: string[]
   home: string
   profile: { firstName: string | null; lastName: string | null } | null
-  doctor?: { id: string; status: string } | null
+  doctor?: { id: string; status: string; avatarUrl: string | null } | null
   agent?: { id: string; status: string } | null
 }
 
@@ -189,7 +189,11 @@ export function PanelShell({
           <div className="flex items-center gap-2">
             {bell}
             <div className="hidden items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-1.5 sm:flex">
-              <UserRound className="h-4 w-4 text-primary" />
+              {user.doctor?.avatarUrl ? (
+                <img src={user.doctor.avatarUrl} alt={displayName} className="h-8 w-8 rounded-full object-cover ring-1 ring-border" />
+              ) : (
+                <UserRound className="h-4 w-4 text-primary" />
+              )}
               <div className="text-right leading-tight">
                 <div className="text-xs font-bold">{displayName}</div>
                 <div className="text-[10px] text-muted-foreground">{roleTitles}</div>

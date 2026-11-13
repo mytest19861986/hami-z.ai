@@ -19,6 +19,7 @@ interface DoctorStatus {
   clinicName: string | null
   province: string | null
   city: string | null
+  avatarUrl: string | null
   discountPercent: number | null
   status: string
   rejectReason: string | null
@@ -110,12 +111,17 @@ export default function DoctorDashboard() {
         title="داشبورد پزشک"
         description={`تخصص: ${s.specialty} · ${s.clinicName ?? ""}`}
         action={
-          <Button asChild>
-            <Link href="/doctor/visits/new">
-              <ClipboardPlus className="ml-1 h-4 w-4" />
-              ثبت ویزیت جدید
-            </Link>
-          </Button>
+          <div className="flex items-center gap-3">
+            {s.avatarUrl ? (
+              <img src={s.avatarUrl} alt="عکس پروفایل" className="h-11 w-11 rounded-full object-cover ring-2 ring-gold/60" />
+            ) : null}
+            <Button asChild>
+              <Link href="/doctor/visits/new">
+                <ClipboardPlus className="ml-1 h-4 w-4" />
+                ثبت ویزیت جدید
+              </Link>
+            </Button>
+          </div>
         }
       />
 

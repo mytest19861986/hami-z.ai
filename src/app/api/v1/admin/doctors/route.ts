@@ -74,6 +74,7 @@ export async function GET(req: NextRequest) {
       status: d.status,
       rejectReason: d.rejectReason,
       isPublic: d.isPublic,
+      avatarUrl: d.avatarUrl,
       visitsCount: d._count.visits,
       // امتیاز تأییدشده: میانگین (یک رقم اعشار) و تعداد رأی‌دهندگان؛ null یعنی هنوز رأی تأییدشده‌ای نیست
       ratingAvg: d.reviews.length > 0 ? Math.round((d.reviews.reduce((s, r) => s + r.rating, 0) / d.reviews.length) * 10) / 10 : null,

@@ -21,6 +21,7 @@ export async function GET() {
     city: doctor.city,
     clinicPhone: doctor.clinicPhone,
     bio: doctor.bio,
+    avatarUrl: doctor.avatarUrl, // عکس پروفایل پزشک (DOCTOR-DASH-007)
     discountPercent: doctor.discountPercent,
     status: doctor.status,
     rejectReason: doctor.rejectReason,

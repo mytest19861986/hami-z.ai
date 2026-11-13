@@ -1,12 +1,14 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PageHeader } from "@/components/shared/page-header"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { EmptyState } from "@/components/shared/empty-state"
 import { Pagination } from "@/components/shared/pagination"
+import { JalaliDateInput, type JalaliDate, formatJalaliNumeric, toIsoDate } from "@/components/admin/jalali-date-input"
 import { api, errMessage } from "@/lib/client"
 import { formatToman } from "@/lib/format"
 import { faDateTime } from "@/lib/jalali"
@@ -37,11 +39,21 @@ export default function DoctorVisitsPage() {
   const [data, setData] = useState<VisitsResponse | null>(null)
   const [error, setError] = useState("")
   const [page, setPage] = useState(1)
+  // فیلتر بازه تاریخ شمسی (DOCTOR-DASH-005): هر دو تاریخ باید با هم اعمال شوند
+  const [range, setRange] = useState<{ from: JalaliDate | null; to: JalaliDate | null }>({ from: null, to: null })
+
+  const requestKey = JSON.stringify([page, range])
 
   useEffect(() => {
     let mounted = true
+    const params = new URLSearchParams()
+    if (range.from && range.to) {
+      params.set("from", toIsoDate(range.from))
+      params.set("to", toIsoDate(range.to))
+    }
+    params.set("page", String(page))
     api
-      .get<VisitsResponse>(`/api/v1/doctor/visits?page=${page}`)
+      .get<VisitsResponse>(`/api/v1/doctor/visits?${params.toString()}`)
       .then((d) => {
         if (mounted) setData(d)
       })
@@ -51,19 +63,67 @@ export default function DoctorVisitsPage() {
     return () => {
       mounted = false
     }
-  }, [page])
+  }, [requestKey])
 
   return (
     <div>
       <PageHeader title="تاریخچه ویزیت‌ها" description="ویزیت‌های ثبت‌شده توسط شما (DOCTOR-DASH-005 · VISIT-011)" />
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+      {/* نوار فیلتر بازه تاریخ شمسی (UX-002) */}
+      <div className="mb-5 rounded-xl border bg-card p-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-muted-foreground">از تاریخ (شمسی)</span>
+            <JalaliDateInput
+              aria-label="تاریخ شروع بازه"
+              value={range.from}
+              onChange={(from) => { setPage(1); setRange((r) => ({ ...r, from })) }}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-muted-foreground">تا تاریخ (شمسی)</span>
+            <JalaliDateInput
+              aria-label="تاریخ پایان بازه"
+              value={range.to}
+              onChange={(to) => { setPage(1); setRange((r) => ({ ...r, to })) }}
+            />
+          </div>
+          {(range.from || range.to) && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="self-end sm:self-center"
+              onClick={() => { setPage(1); setRange({ from: null, to: null }) }}
+            >
+              پاک‌کردن بازه
+            </Button>
+          )}
+          <div className="text-xs text-muted-foreground sm:mr-auto">
+            {range.from && range.to ? (
+              `نمایش ویزیت‌های ${formatJalaliNumeric(range.from)} تا ${formatJalaliNumeric(range.to)}`
+            ) : "بدون محدودیت تاریخ (هر دو تاریخ را انتخاب کنید تا بازه اعمال شود)"}
+          </div>
+        </div>
+      </div>
+
       {!data ? (
         <Skeleton className="h-64 rounded-xl" />
       ) : data.visits.length === 0 ? (
-        <EmptyState title="ویزیتی ثبت نشده است" description="از صفحه «احراز شرایط و ثبت ویزیت» اولین ویزیت را ثبت کنید." />
+        <EmptyState
+          title={range.from && range.to ? "ویزیتی در این بازه ثبت نشده است" : "ویزیتی ثبت نشده است"}
+          description={
+            range.from && range.to
+              ? "بازه را تغییر دهید یا پاک کنید تا همهٔ ویزیت‌ها را ببینید."
+              : "از صفحه «احراز شرایط و ثبت ویزیت» اولین ویزیت را ثبت کنید."
+          }
+        />
       ) : (
         <>
-          <p className="mb-3 text-sm text-muted-foreground">{data.total} ویزیت</p>
+          <p className="mb-3 text-sm text-muted-foreground">
+            {data.total} ویزیت{range.from && range.to ? " در بازهٔ انتخابی" : ""}
+          </p>
           <Card>
             <CardContent className="p-0">
               <div className="divide-y">
