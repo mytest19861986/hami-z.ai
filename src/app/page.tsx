@@ -3,7 +3,7 @@ import { db } from "@/lib/db"
 import { PublicHeader, PublicFooter } from "@/components/shared/public-chrome"
 import { Button } from "@/components/ui/button"
 import { BrandMark, Shamseh } from "@/components/shared/brand"
-import { ArrowLeft, Stethoscope, MapPin, ShieldCheck, Clock3, HeartHandshake } from "lucide-react"
+import { ArrowLeft, Stethoscope, MapPin, ShieldCheck, Clock3, HeartHandshake, Star } from "lucide-react"
 import { formatToman } from "@/lib/format"
 import { toFaDigits, faDate } from "@/lib/jalali"
 
@@ -11,17 +11,46 @@ export const dynamic = "force-dynamic"
 
 async function getData() {
   const now = new Date()
-  const [plans, doctors, activeMemberships, doctorCount] = await Promise.all([
+  // پزشکان منتخب: تأییدشده + عمومی؛ اولویت با پزشکان دارای نظرات تأییدشدهٔ بیشینه
+  // (میانگین ستاره × لگاریتم تعداد رأی — رتبهٔ اعتماد؛ بدون رأی، بر اساس جدیدترین)
+  const [plans, doctorsRaw, activeMemberships, doctorCount] = await Promise.all([
     db.discountPlan.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" }, take: 3 }),
     db.doctor.findMany({
       where: { status: "APPROVED", isPublic: true },
+      include: {
+        user: { select: { profile: { select: { firstName: true, lastName: true } } } },
+        reviews: { where: { status: "APPROVED" }, select: { rating: true } },
+      },
+      take: 60,
       orderBy: { createdAt: "desc" },
-      take: 6,
-      include: { user: { select: { profile: { select: { firstName: true, lastName: true } } } } },
     }),
     db.membership.count({ where: { status: "ACTIVE", endDate: { gte: now } } }),
     db.doctor.count({ where: { status: "APPROVED", isPublic: true } }),
   ])
+
+  // محاسبهٔ امتیاز و رتبه‌بندی (پزشکان با امتیاز بالا در بنر بالا می‌آیند)
+  const doctors = doctorsRaw
+    .map((d) => {
+      const count = d.reviews.length
+      const avg = count > 0 ? d.reviews.reduce((s, r) => s + r.rating, 0) / count : null
+      // رتبهٔ اعتماد: میانگین وزن اصلی؛ تعداد رأی بیشتر، رتبه را تقویت می‌کند (log برای جلوگیری از غلبهٔ صرفاً تعدادی)
+      const score = avg !== null ? avg * (1 + Math.log10(Math.max(1, count)) / 2) : -1
+      return {
+        id: d.id,
+        specialty: d.specialty,
+        clinicName: d.clinicName,
+        province: d.province,
+        city: d.city,
+        discountPercent: d.discountPercent,
+        user: d.user,
+        ratingAvg: avg !== null ? Math.round(avg * 10) / 10 : null,
+        ratingCount: count,
+        score,
+      }
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6)
+
   return { plans, doctors, activeMemberships, doctorCount }
 }
 
@@ -227,7 +256,9 @@ export default async function HomePage() {
               <div>
                 <p className="text-xs font-bold uppercase tracking-wider text-gold-deep">شبکهٔ درمانی</p>
                 <h2 className="font-display mt-2 text-2xl font-extrabold sm:text-3xl">پزشکان طرف همکاری</h2>
-                <p className="mt-2 text-sm text-muted-foreground">نمونه‌ای از شبکهٔ پزشکان حامی‌کارت در سراسر کشور</p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {doctors[0]?.ratingAvg ? "برترین پزشکان بر اساس رضایت واقعی بیماران (نظرات تأییدشده)" : "نمونه‌ای از شبکهٔ پزشکان حامی‌کارت در سراسر کشور"}
+                </p>
               </div>
               <Button asChild variant="ghost" className="text-primary hover:text-primary">
                 <Link href="/doctors">
@@ -249,6 +280,19 @@ export default async function HomePage() {
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                         <h3 className="truncate text-sm font-bold">دکتر {name}</h3>
                         <span className="text-xs text-primary">{d.specialty}</span>
+                        {/* امتیاز بیماران (نظرات تأییدشده) */}
+                        {d.ratingAvg ? (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <Star
+                                key={i}
+                                className={`h-3 w-3 ${i < Math.round(d.ratingAvg!) ? "fill-amber-400 text-amber-500" : "text-amber-200"}`}
+                              />
+                            ))}
+                            <span className="text-[11px] font-bold text-amber-700">{toFaDigits(d.ratingAvg!)}</span>
+                            <span className="text-[10px] text-amber-600/80">({toFaDigits(d.ratingCount)} رأی)</span>
+                          </span>
+                        ) : null}
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                         {d.clinicName ? <span>{d.clinicName}</span> : null}

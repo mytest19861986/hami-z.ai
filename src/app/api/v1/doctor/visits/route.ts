@@ -7,9 +7,10 @@ import { discountAmount } from "@/lib/format"
 import { getSetting } from "@/lib/settings"
 
 // ثبت ویزیت (VISIT-001..013 · AC-07 · AC-08 · BR-08) — مصرف اتمیک سهمیه
+// مبلغ ویزیت اختیاری است: ارسال نشود یا 0 باشد → ویزیت بدون مبلغ و بدون تخفیف ریالی ثبت می‌شود
 const createSchema = z.object({
   membershipId: z.string().min(1, "عضویت را انتخاب کنید."),
-  totalAmount: z.number({ message: "مبلغ ویزیت را وارد کنید." }).int("مبلغ باید عدد صحیح باشد.").min(1000, "مبلغ ویزیت نامعتبر است.").max(1_000_000_000),
+  totalAmount: z.number({ message: "مبلغ ویزیت را وارد کنید." }).int("مبلغ باید عدد صحیح باشد.").min(0, "مبلغ ویزیت نامعتبر است.").max(1_000_000_000).optional().default(0),
   note: z.string().trim().max(500, "یادداشت حداکثر ۵۰۰ نویسه است.").optional().or(z.literal("")),
 })
 
@@ -91,6 +92,7 @@ export async function POST(req: NextRequest) {
 
       // مبنای تخفیف بر اساس تنظیم مصوب OPEN-02 (DISCOUNT_PRECEDENCE):
       // DOCTOR (پیش‌فرض) = درصد اختصاصی پزشک در صورت وجود مقدم است؛ PLAN = درصد طرح همیشه مقدم
+      // مبلغ صفر (اختیاری‌بودن مبلغ) → تخفیف ریالی ندارد ولی درصد پایه ثبت می‌شود
       const precedence = (await getSetting("DISCOUNT_PRECEDENCE")) || "DOCTOR"
       const planPercent = membership.plan.discountPercent
       const doctorPercent = doctor.discountPercent
@@ -103,7 +105,7 @@ export async function POST(req: NextRequest) {
         percent = doctorPercent ?? planPercent
         base = doctorPercent !== null && doctorPercent !== undefined ? "DOCTOR" : "PLAN"
       }
-      const disc = discountAmount(totalAmount, percent)
+      const disc = totalAmount > 0 ? discountAmount(totalAmount, percent) : 0
       const final = totalAmount - disc
 
       // مصرف اتمیک سهمیه + ثبت ویزیت در یک تراکنش (VISIT-005/006 · SEC-007)

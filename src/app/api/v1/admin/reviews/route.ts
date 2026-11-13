@@ -61,14 +61,15 @@ export async function POST(req: NextRequest) {
 
   if (decision === "REJECT" && (reason ?? "").trim().length < 3) return fail("برای رد نظر، دلیل الزامی است.", 422)
 
+  // REVIEW-003/004: مدیر هر زمان که بخواهد تصمیم می‌گیرد؛ تصمیم قبلی هم قابل تغییر است
+  // (مثلاً نظر منتشرشده بعد از بررسی مجدد رد شود، یا نظر ردشده تأیید و منتشر شود).
   const review = await db.doctorReview.findUnique({ where: { id: reviewId } })
   if (!review) return fail("نظر یافت نشد.", 404)
-  if (review.status !== "PENDING") return fail("این نظر قبلاً تعیین تکلیف شده است.", 409)
 
   await db.doctorReview.update({
     where: { id: reviewId },
     data: { status: decision === "APPROVE" ? "APPROVED" : "REJECTED", rejectReason: decision === "REJECT" ? reason : null, reviewedById: auth.user.id, reviewedAt: new Date() },
   })
-  await audit(auth.user, `REVIEW_${decision}`, "DOCTOR_REVIEW", reviewId, { reason: reason || null })
+  await audit(auth.user, `REVIEW_${decision}`, "DOCTOR_REVIEW", reviewId, { reason: reason || null, previousStatus: review.status })
   return ok({ updated: true })
 }

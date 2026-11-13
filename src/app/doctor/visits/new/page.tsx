@@ -76,9 +76,11 @@ export default function NewVisitPage() {
   async function save() {
     setSaving(true)
     try {
+      const amountNum = totalAmount.trim() ? parseInt(totalAmount.replace(/\D/g, ""), 10) : 0
       const res = await api.post<VisitResult>("/api/v1/doctor/visits", {
         membershipId: selectedMembership,
-        totalAmount: parseInt(totalAmount.replace(/\D/g, ""), 10),
+        // مبلغ اختیاری است؛ خالی = ثبت ویزیت بدون مبلغ و تخفیف ریالی
+        ...(amountNum > 0 ? { totalAmount: amountNum } : {}),
         note,
       })
       setDone(res)
@@ -100,18 +102,26 @@ export default function NewVisitPage() {
             <h1 className="mt-4 text-lg font-bold">ویزیت با موفقیت ثبت شد</h1>
             <p className="mt-1 text-sm text-muted-foreground">دارنده: {v.holder} · {faDate(v.visitDate)}</p>
             <div className="mt-5 space-y-2 text-sm">
-              <div className="flex justify-between rounded-lg bg-muted/60 px-4 py-2.5">
-                <span>مبلغ ویزیت</span>
-                <span className="font-bold">{formatToman(v.totalAmount)}</span>
-              </div>
-              <div className="flex justify-between rounded-lg bg-emerald-50 px-4 py-2.5 text-emerald-800">
-                <span>تخفیف ({v.discountPercent}٪ — {label(v.discountBase)})</span>
-                <span className="font-bold">{formatToman(v.discountAmount)}</span>
-              </div>
-              <div className="flex justify-between rounded-lg bg-primary/10 px-4 py-2.5 text-primary">
-                <span>مبلغ پرداختی دارنده</span>
-                <span className="font-bold">{formatToman(v.finalAmount)}</span>
-              </div>
+              {v.totalAmount > 0 ? (
+                <>
+                  <div className="flex justify-between rounded-lg bg-muted/60 px-4 py-2.5">
+                    <span>مبلغ ویزیت</span>
+                    <span className="font-bold">{formatToman(v.totalAmount)}</span>
+                  </div>
+                  <div className="flex justify-between rounded-lg bg-emerald-50 px-4 py-2.5 text-emerald-800">
+                    <span>تخفیف ({v.discountPercent}٪ — {label(v.discountBase)})</span>
+                    <span className="font-bold">{formatToman(v.discountAmount)}</span>
+                  </div>
+                  <div className="flex justify-between rounded-lg bg-primary/10 px-4 py-2.5 text-primary">
+                    <span>مبلغ پرداختی دارنده</span>
+                    <span className="font-bold">{formatToman(v.finalAmount)}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-lg bg-muted/60 px-4 py-2.5 text-center text-sm text-muted-foreground">
+                  ویزیت بدون مبلغ ثبت شد (مبلغ اعلام نشده بود).
+                </div>
+              )}
             </div>
             <div className="mt-6 flex justify-center gap-3">
               <Button onClick={() => { setDone(null); setResult(null); setNationalCode(""); setMobile(""); setTotalAmount(""); setNote(""); setSelectedMembership("") }}>
@@ -206,18 +216,20 @@ export default function NewVisitPage() {
             <Card>
               <CardContent className="grid gap-4 p-6 sm:grid-cols-2">
                 <div className="space-y-1.5 sm:col-span-2">
-                  <label className="text-sm font-medium">مبلغ ویزیت (تومان) *</label>
+                  <label className="text-sm font-medium">مبلغ ویزیت به تومان (اختیاری)</label>
                   <Input dir="ltr" inputMode="numeric" placeholder="مثلاً 350000" value={totalAmount} onChange={(e) => setTotalAmount(e.target.value)} className="text-left" />
                   {totalAmount ? (
                     <p className="text-xs text-muted-foreground">{formatToman(parseInt(totalAmount.replace(/\D/g, ""), 10) || 0)}</p>
-                  ) : null}
+                  ) : (
+                    <p className="text-xs text-muted-foreground">اگر مبلغی وارد نشود، ویزیت بدون مبلغ و تخفیف ریالی ثبت می‌شود.</p>
+                  )}
                 </div>
                 <div className="space-y-1.5 sm:col-span-2">
                   <label className="text-sm font-medium">یادداشت خدمت (اختیاری، محرمانه)</label>
                   <Textarea rows={2} maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} placeholder="در چارچوب حریم خصوصی بیمار" />
                 </div>
                 <div className="sm:col-span-2">
-                  <Button onClick={save} disabled={saving || !totalAmount} size="lg">
+                  <Button onClick={save} disabled={saving} size="lg">
                     <ClipboardPlus className="ml-1 h-4 w-4" />
                     {saving ? "در حال ثبت…" : "ثبت نهایی ویزیت"}
                   </Button>

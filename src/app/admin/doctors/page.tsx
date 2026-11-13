@@ -24,7 +24,29 @@ import { DoctorEditModal } from "@/components/admin/doctor-edit-modal"
 import { api, errMessage } from "@/lib/client"
 import { toast } from "@/hooks/use-toast"
 import { toFaDigits } from "@/lib/jalali"
-import { Search, ChartColumn, Pencil, XCircle, TriangleAlert, ChevronDown } from "lucide-react"
+import { Search, ChartColumn, Pencil, XCircle, TriangleAlert, ChevronDown, Star } from "lucide-react"
+
+/* ─── نشان امتیاز پزشک (REVIEW-005) — سطل طلایی ستاره + میانگین + تعداد رأی ─── */
+function RatingBadge({ avg, count }: { avg: number | null; count: number }) {
+  if (avg === null || count === 0) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground" title="هنوز نظر تأییدشده‌ای ثبت نشده">
+        <Star className="h-3 w-3" />
+        بدون امتیاز
+      </span>
+    )
+  }
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-gradient-to-l from-amber-50 to-yellow-50 px-2.5 py-0.5 shadow-sm"
+      title={`میانگین ${toFaDigits(avg)} از ۵ — بر اساس ${toFaDigits(count)} نظر تأییدشده`}
+    >
+      <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500" />
+      <span className="text-xs font-extrabold text-amber-700">{toFaDigits(avg)}</span>
+      <span className="text-[10px] font-medium text-amber-600/80">({toFaDigits(count)} رأی)</span>
+    </span>
+  )
+}
 
 interface DoctorRow {
   id: string
@@ -48,6 +70,8 @@ interface DoctorRow {
   rejectReason: string | null
   isPublic: boolean
   visitsCount: number
+  ratingAvg: number | null
+  ratingCount: number
   createdAt: string
 }
 
@@ -170,6 +194,8 @@ export default function AdminDoctorsPage() {
                         <button className="text-sm font-semibold hover:text-primary" onClick={() => { setDetail(d); setDiscount(d.discountPercent ? String(d.discountPercent) : "") }}>
                           دکتر {d.name}
                         </button>
+                        {/* امتیاز تأییدشدهٔ بیماران (REVIEW-005) */}
+                        <RatingBadge avg={d.ratingAvg} count={d.ratingCount} />
                         <StatusBadge status={d.status} />
                         {d.discountPercent ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">{d.discountPercent}٪ اختصاصی</span> : null}
                         {!d.isPublic && d.status === "APPROVED" ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">غیرعمومی</span> : null}

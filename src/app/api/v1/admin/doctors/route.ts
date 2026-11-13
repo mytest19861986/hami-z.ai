@@ -42,6 +42,8 @@ export async function GET(req: NextRequest) {
       include: {
         user: { select: { id: true, mobile: true, profile: { select: { firstName: true, lastName: true } } } },
         _count: { select: { visits: true } },
+        // امتیاز پزشک از نظرات تأییدشده (REVIEW-005): میانگین ستاره‌ها + تعداد رأی
+        reviews: { where: { status: "APPROVED" }, select: { rating: true } },
       },
     }),
   ])
@@ -73,6 +75,9 @@ export async function GET(req: NextRequest) {
       rejectReason: d.rejectReason,
       isPublic: d.isPublic,
       visitsCount: d._count.visits,
+      // امتیاز تأییدشده: میانگین (یک رقم اعشار) و تعداد رأی‌دهندگان؛ null یعنی هنوز رأی تأییدشده‌ای نیست
+      ratingAvg: d.reviews.length > 0 ? Math.round((d.reviews.reduce((s, r) => s + r.rating, 0) / d.reviews.length) * 10) / 10 : null,
+      ratingCount: d.reviews.length,
       createdAt: d.createdAt,
     })),
   })

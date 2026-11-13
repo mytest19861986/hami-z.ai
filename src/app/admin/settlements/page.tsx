@@ -13,12 +13,13 @@ import { Textarea } from "@/components/ui/textarea"
 import { PageHeader } from "@/components/shared/page-header"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { Pagination } from "@/components/shared/pagination"
+import { JalaliDateInput, JalaliDate, toIsoDate, formatJalaliNumeric } from "@/components/admin/jalali-date-input"
 import { api, errMessage } from "@/lib/client"
 import { toast } from "@/hooks/use-toast"
 import { formatToman } from "@/lib/format"
 import { faDateTime, toFaDigits } from "@/lib/jalali"
 import { maskCard, maskSheba } from "@/lib/validators"
-import { Search, Copy, Check, FileSpreadsheet, FileText } from "lucide-react"
+import { Search, Copy, Check, FileSpreadsheet, FileText, CalendarDays } from "lucide-react"
 
 interface SettlementRow {
   id: string
@@ -105,14 +106,20 @@ export default function AdminSettlementsPage() {
   // انتخاب تسویه‌های تأییدشده برای خروجی (بین صفحات حفظ می‌شود)
   const [selected, setSelected] = useState<Map<string, SettlementRow>>(new Map())
   const [exporting, setExporting] = useState(false)
+  // فیلتر بازه تاریخ شمسی (UX-002): هر دو تاریخ باید با هم اعمال شوند
+  const [range, setRange] = useState<{ from: JalaliDate | null; to: JalaliDate | null }>({ from: null, to: null })
 
-  const requestKey = JSON.stringify([q, status, page])
+  const requestKey = JSON.stringify([q, status, page, range])
   const loading = requestKey !== loadedKey
 
   function fetchUrl() {
     const params = new URLSearchParams()
     if (q) params.set("q", q)
     if (status) params.set("status", status)
+    if (range.from && range.to) {
+      params.set("from", toIsoDate(range.from))
+      params.set("to", toIsoDate(range.to))
+    }
     params.set("page", String(page))
     return `/api/v1/admin/settlements?${params.toString()}`
   }
@@ -254,22 +261,63 @@ export default function AdminSettlementsPage() {
         description="بررسی درخواست‌ها و ثبت وضعیت پرداخت خارج از سامانه — «پرداخت‌شده» فقط توسط مدیر ارشد ثبت می‌شود (ADMIN-020 · SETTLE-008/009)"
       />
 
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row">
-        <div className="relative flex-1">
-          <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="نام، موبایل یا کد پیگیری…" value={q} onChange={(e) => { setPage(1); setQ(e.target.value) }} className="pr-9" />
+      <div className="mb-4 flex flex-col gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="relative flex-1">
+            <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="نام، موبایل یا کد پیگیری…" value={q} onChange={(e) => { setPage(1); setQ(e.target.value) }} className="pr-9" />
+          </div>
+          <Select value={status || "ALL"} onValueChange={(v) => { setPage(1); setStatus(v === "ALL" ? "" : v) }}>
+            <SelectTrigger className="sm:w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">همه وضعیت‌ها</SelectItem>
+              <SelectItem value="PENDING">در انتظار</SelectItem>
+              <SelectItem value="APPROVED">تأییدشده</SelectItem>
+              <SelectItem value="PAID">پرداخت‌شده</SelectItem>
+              <SelectItem value="REJECTED">ردشده</SelectItem>
+              <SelectItem value="CANCELLED">لغوشده</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        <Select value={status || "ALL"} onValueChange={(v) => { setPage(1); setStatus(v === "ALL" ? "" : v) }}>
-          <SelectTrigger className="sm:w-44"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">همه وضعیت‌ها</SelectItem>
-            <SelectItem value="PENDING">در انتظار</SelectItem>
-            <SelectItem value="APPROVED">تأییدشده</SelectItem>
-            <SelectItem value="PAID">پرداخت‌شده</SelectItem>
-            <SelectItem value="REJECTED">ردشده</SelectItem>
-            <SelectItem value="CANCELLED">لغوشده</SelectItem>
-          </SelectContent>
-        </Select>
+        {/* فیلتر بازه تاریخ شمسی (UX-002): انتخاب روز/ماه/سال از تا + پاک‌کردن بازه */}
+        <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3 lg:flex-row lg:items-center">
+          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <CalendarDays className="size-4" />
+            بازه تاریخ (شمسی)
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">از تاریخ</span>
+            <JalaliDateInput
+              aria-label="تاریخ شروع بازه"
+              value={range.from}
+              onChange={(from) => { setPage(1); setRange((r) => ({ ...r, from })) }}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-muted-foreground">تا تاریخ</span>
+            <JalaliDateInput
+              aria-label="تاریخ پایان بازه"
+              value={range.to}
+              onChange={(to) => { setPage(1); setRange((r) => ({ ...r, to })) }}
+            />
+          </div>
+          {(range.from || range.to) && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="self-end lg:self-center"
+              onClick={() => { setPage(1); setRange({ from: null, to: null }) }}
+            >
+              پاک‌کردن بازه
+            </Button>
+          )}
+          <div className="text-xs text-muted-foreground lg:mr-auto">
+            {range.from && range.to ? (
+              `نمایش تسویه‌های ${formatJalaliNumeric(range.from)} تا ${formatJalaliNumeric(range.to)}`
+            ) : "بدون محدودیت تاریخ (هر دو تاریخ را انتخاب کنید تا بازه اعمال شود)"}
+          </div>
+        </div>
       </div>
 
       {/* نوار خروجی — انتخاب تسویه‌های تأییدشده برای اکسل/PDF (EXPORT-SETTLE) */}

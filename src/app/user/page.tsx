@@ -8,10 +8,11 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { StatCard } from "@/components/shared/stat-card"
 import { PageHeader } from "@/components/shared/page-header"
 import { StatusBadge } from "@/components/shared/status-badge"
+import { JalaliDateInput, JalaliDate, toIsoDate, formatJalaliNumeric } from "@/components/admin/jalali-date-input"
 import { api, errMessage } from "@/lib/client"
 import { formatToman } from "@/lib/format"
 import { faDate, daysUntil, toFaDigits } from "@/lib/jalali"
-import { IdCard, ShoppingBag, Stethoscope, PlusCircle, CreditCard, Wallet, UserRoundPen, AlertCircle } from "lucide-react"
+import { IdCard, ShoppingBag, Stethoscope, PlusCircle, CreditCard, Wallet, UserRoundPen, AlertCircle, CalendarDays } from "lucide-react"
 import { label } from "@/constants/labels"
 
 interface MembershipItem {
@@ -26,17 +27,6 @@ interface MembershipItem {
   originType: string
 }
 
-interface VisitItem {
-  id: string
-  holder: string
-  doctorName: string
-  specialty: string
-  visitDate: string
-  finalAmount: number
-  discountAmount: number
-  status: string
-}
-
 interface PurchaseItem {
   id: string
   trackingCode: string
@@ -44,6 +34,22 @@ interface PurchaseItem {
   amount: number
   status: string
   createdAt: string
+}
+
+// آمار بازه‌ای داشبورد (USER-001 + فیلتر بازه شمسی UX-002)
+interface DashboardStats {
+  from: string | null
+  to: string | null
+  totals: { visits: number; totalDiscount: number; purchases: number }
+  visits: {
+    id: string
+    holder: string
+    doctorName: string
+    specialty: string
+    visitDate: string
+    discountAmount: number
+    finalAmount: number
+  }[]
 }
 
 // USER-GATE: طرح‌های فعالِ فروش برای نمایش به کاربر تازه‌وارد
@@ -60,16 +66,29 @@ interface ShopPlanItem {
 
 export default function UserDashboard() {
   const [memberships, setMemberships] = useState<MembershipItem[] | null>(null)
-  const [visits, setVisits] = useState<VisitItem[] | null>(null)
-  const [purchases, setPurchases] = useState<PurchaseItem[] | null>(null)
   const [shopPlans, setShopPlans] = useState<ShopPlanItem[] | null>(null)
   const [hasNationalCode, setHasNationalCode] = useState<boolean | null>(null)
   const [error, setError] = useState("")
+  // فیلتر بازه تاریخ شمسی (UX-002): آمار تخفیف/ویزیت/خرید و «آخرین ویزیت‌ها» بر اساس بازه
+  const [range, setRange] = useState<{ from: JalaliDate | null; to: JalaliDate | null }>({ from: null, to: null })
+  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [statsKey, setStatsKey] = useState("")
+
+  const statsRequestKey = JSON.stringify(range)
+  const statsLoading = statsRequestKey !== statsKey
+
+  function statsUrl() {
+    const params = new URLSearchParams()
+    if (range.from && range.to) {
+      params.set("from", toIsoDate(range.from))
+      params.set("to", toIsoDate(range.to))
+    }
+    const qs = params.toString()
+    return `/api/v1/user/dashboard${qs ? `?${qs}` : ""}`
+  }
 
   useEffect(() => {
     api.get<MembershipItem[]>("/api/v1/user/memberships").then(setMemberships).catch((e) => setError(errMessage(e)))
-    api.get<VisitItem[]>("/api/v1/user/visits").then(setVisits).catch(() => {})
-    api.get<PurchaseItem[]>("/api/v1/user/purchases").then(setPurchases).catch(() => {})
     // USER-GATE: طرح‌های فعال فروش + وضعیت پروفایل (گیت پیش از خرید — خرید فقط به نام خود کاربر)
     api.get<ShopPlanItem[]>("/api/v1/public/plans").then(setShopPlans).catch(() => setShopPlans([]))
     api
@@ -89,8 +108,25 @@ export default function UserDashboard() {
       .catch(() => setHasNationalCode(null)) // گیت اصلی در صفحهٔ خرید هم موجود است
   }, [])
 
+  // آمار بازه‌ای (با تغییر بازه دوباره واکشی می‌شود)
+  useEffect(() => {
+    let mounted = true
+    api
+      .get<DashboardStats>(statsUrl())
+      .then((d) => {
+        if (!mounted) return
+        setStats(d)
+        setStatsKey(statsRequestKey)
+      })
+      .catch(() => {
+        if (mounted) setStatsKey(statsRequestKey)
+      })
+    return () => {
+      mounted = false
+    }
+  }, [statsRequestKey])
+
   const active = (memberships ?? []).filter((m) => m.status === "ACTIVE" && daysUntil(m.endDate) >= 0)
-  const totalDiscount = (visits ?? []).reduce((s, v) => s + v.discountAmount, 0)
   // USER-GATE: کاربر تازه‌وارد (بدون طرح فعال) → فروشگاه طرح‌ها با دکمهٔ تکمیل پروفایل
   const isFreshUser = memberships !== null && active.length === 0
 
@@ -111,11 +147,55 @@ export default function UserDashboard() {
 
       {error ? <p className="mb-4 text-sm text-destructive">{error}</p> : null}
 
+      {/* فیلتر بازه تاریخ شمسی (UX-002): آمار و آخرین ویزیت‌ها بر اساس همین بازه محاسبه می‌شوند */}
+      <div className="mb-4 flex flex-col gap-3 rounded-lg border bg-muted/30 p-3 lg:flex-row lg:items-center">
+        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+          <CalendarDays className="size-4" />
+          بازه تاریخ (شمسی)
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground">از تاریخ</span>
+          <JalaliDateInput aria-label="تاریخ شروع بازه" value={range.from} onChange={(from) => setRange((r) => ({ ...r, from }))} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground">تا تاریخ</span>
+          <JalaliDateInput aria-label="تاریخ پایان بازه" value={range.to} onChange={(to) => setRange((r) => ({ ...r, to }))} />
+        </div>
+        {(range.from || range.to) && (
+          <Button variant="ghost" size="sm" className="self-end lg:self-center" onClick={() => setRange({ from: null, to: null })}>
+            پاک‌کردن بازه
+          </Button>
+        )}
+        <div className="text-xs text-muted-foreground lg:mr-auto">
+          {range.from && range.to ? (
+            `آمار از ${formatJalaliNumeric(range.from)} تا ${formatJalaliNumeric(range.to)}`
+          ) : "آمار کل دوره (هر دو تاریخ را انتخاب کنید تا بازه اعمال شود)"}
+        </div>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="عضویت فعال" value={toFaDigits(active.length)} icon={<IdCard className="h-4 w-4" />} />
-        <StatCard title="مجموع تخفیف دریافتی" value={formatToman(totalDiscount)} tone="emerald" icon={<CreditCard className="h-4 w-4" />} />
-        <StatCard title="ویزیت‌های ثبت‌شده" value={toFaDigits(visits?.length ?? 0)} tone="sky" icon={<Stethoscope className="h-4 w-4" />} />
-        <StatCard title="خریدهای ثبت‌شده" value={toFaDigits(purchases?.length ?? 0)} tone="violet" icon={<ShoppingBag className="h-4 w-4" />} />
+        <StatCard
+          title="مجموع تخفیف دریافتی"
+          value={statsLoading && !stats ? "…" : formatToman(stats?.totals.totalDiscount ?? 0)}
+          hint={range.from && range.to ? "در بازهٔ انتخابی" : "کل دوره"}
+          tone="emerald"
+          icon={<CreditCard className="h-4 w-4" />}
+        />
+        <StatCard
+          title="ویزیت‌های ثبت‌شده"
+          value={statsLoading && !stats ? "…" : toFaDigits(stats?.totals.visits ?? 0)}
+          hint={range.from && range.to ? "در بازهٔ انتخابی" : "کل دوره"}
+          tone="sky"
+          icon={<Stethoscope className="h-4 w-4" />}
+        />
+        <StatCard
+          title="خریدهای ثبت‌شده"
+          value={statsLoading && !stats ? "…" : toFaDigits(stats?.totals.purchases ?? 0)}
+          hint={range.from && range.to ? "در بازهٔ انتخابی" : "کل دوره"}
+          tone="violet"
+          icon={<ShoppingBag className="h-4 w-4" />}
+        />
       </div>
 
       {/* USER-GATE: کاربر تازه‌وارد — طرح‌های فعال فروش + یک دکمهٔ هدایت به تکمیل پروفایل (گیت پیش از خرید) */}
@@ -260,17 +340,17 @@ export default function UserDashboard() {
         </>
       ) : null}
 
-      {/* آخرین ویزیت‌ها (USER-005) */}
-      <h2 className="mb-3 mt-8 text-lg font-bold">آخرین ویزیت‌ها</h2>
+      {/* آخرین ویزیت‌ها (USER-005) — بر اساس بازهٔ انتخابی */}
+      <h2 className="mb-3 mt-8 text-lg font-bold">آخرین ویزیت‌ها {range.from && range.to ? "(بازهٔ انتخابی)" : ""}</h2>
       <Card>
         <CardContent className="p-0">
-          {!visits ? (
+          {statsLoading && !stats ? (
             <div className="p-4"><Skeleton className="h-20 w-full" /></div>
-          ) : visits.length === 0 ? (
-            <p className="p-6 text-center text-sm text-muted-foreground">ویزیتی ثبت نشده است.</p>
+          ) : !stats || stats.visits.length === 0 ? (
+            <p className="p-6 text-center text-sm text-muted-foreground">در این بازه ویزیتی ثبت نشده است.</p>
           ) : (
             <div className="divide-y">
-              {visits.slice(0, 5).map((v) => (
+              {stats.visits.map((v) => (
                 <div key={v.id} className="flex items-center justify-between gap-3 p-4">
                   <div>
                     <div className="text-sm font-medium">دکتر {v.doctorName} — {v.specialty}</div>
