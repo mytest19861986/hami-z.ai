@@ -4,6 +4,7 @@ import { PublicHeader, PublicFooter } from "@/components/shared/public-chrome"
 import { Button } from "@/components/ui/button"
 import { Shamseh } from "@/components/shared/brand"
 import { HomepageBannerSlider } from "@/components/home/homepage-banner-slider"
+import { InstallAppButton } from "@/components/pwa/install-app-button"
 import { ArrowLeft, Stethoscope, MapPin, ShieldCheck, Clock3, HeartHandshake, Star } from "lucide-react"
 import { formatToman } from "@/lib/format"
 import { toFaDigits, faDate } from "@/lib/jalali"
@@ -109,6 +110,7 @@ export default async function HomePage() {
                   پزشکان طرف قرارداد
                 </Link>
               </Button>
+              <InstallAppButton />
             </div>
             <dl className="mt-12 flex max-w-lg divide-x divide-x-reverse divide-border">
               <div className="px-5 text-center first:pr-0">
