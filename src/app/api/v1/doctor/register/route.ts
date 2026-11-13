@@ -5,15 +5,19 @@ import { db } from "@/lib/db"
 import { audit } from "@/lib/audit"
 import { isValidProvinceCity } from "@/constants/geo"
 import { SPECIALTIES } from "@/constants/specialties"
-import { toEnDigits } from "@/lib/validators"
+import { toEnDigits, nationalCodeSchema } from "@/lib/validators"
+import { setUserRole } from "@/lib/roles"
 
 // درخواست همکاری پزشک (DOC-007..010 · AC-02)
+// تک‌نقشی (SINGLE-ROLE): هر موبایل/حساب فقط یک نقش — درخواست پزشک یعنی جایگزینی نقش فعلی با DOCTOR
+// یکتایی هویت: کد ملی و شماره موبایل در سراسر سامانه (کاربران، پروفایل‌ها، دارندگان طرح) یکتاست
 const schema = z.object({
   medicalCouncilCode: z.string()
     .transform((s) => toEnDigits(s).trim())
     .refine((s) => /^\d{4,12}$/.test(s), "کد نظام پزشکی معتبر نیست."),
+  nationalCode: nationalCodeSchema.refine((s) => s !== "", "کد ملی الزامی است."),
   specialty: z.string().refine((s) => (SPECIALTIES as readonly string[]).includes(s), "تخصص را از فهرست انتخاب کنید."),
-  clinicName: z.string().trim().min(2, "نام مطب/کلینیک الزامی است.").max(120),
+  clinicName: z.string().trim().min(2, "نام و نام خانوادگی پزشک / کلینیک الزامی است.").max(120),
   clinicAddress: z.string().trim().max(400).optional().or(z.literal("")),
   province: z.string().min(1, "استان را انتخاب کنید."),
   city: z.string().min(1, "شهر را انتخاب کنید."),
@@ -32,6 +36,12 @@ export async function POST(req: NextRequest) {
     return fail("شهر انتخاب‌شده به استان تعلق ندارد.", 422)
   }
 
+  // تک‌نقشی: حسابی که نقش عملیاتی دیگری (نماینده، پشتیبان، مدیر…) دارد نمی‌تواند پزشک شود
+  const authRoles = auth.user.roles
+  if (authRoles.some((r) => r !== "USER" && r !== "DOCTOR")) {
+    return fail("این حساب دارای نقش دیگری است. هر شماره موبایل فقط می‌تواند یک نقش داشته باشد.", 409)
+  }
+
   const existing = await db.doctor.findUnique({ where: { userId: auth.user.id } })
   if (existing) {
     if (existing.status === "APPROVED") return fail("درخواست پزشکی شما قبلاً تأیید شده است.", 409)
@@ -41,6 +51,14 @@ export async function POST(req: NextRequest) {
 
   const dupCode = await db.doctor.findUnique({ where: { medicalCouncilCode: data.medicalCouncilCode } })
   if (dupCode) return fail("این کد نظام پزشکی قبلاً ثبت شده است.", 409)
+
+  // یکتایی کد ملی در سراسر سامانه: پروفایل‌های دیگر + دارندگان طرح (SINGLE-IDENTITY)
+  const dupNcProfile = await db.userProfile.findFirst({
+    where: { nationalCode: data.nationalCode, NOT: { userId: auth.user.id } },
+  })
+  if (dupNcProfile) return fail("این کد ملی قبلاً برای حساب دیگری ثبت شده است.", 409)
+  const dupNcHolder = await db.planHolder.findUnique({ where: { nationalCode: data.nationalCode } })
+  if (dupNcHolder) return fail("این کد ملی قبلاً به‌عنوان دارندهٔ طرح ثبت شده است.", 409)
 
   const doctor = await db.doctor.create({
     data: {
@@ -57,13 +75,14 @@ export async function POST(req: NextRequest) {
     },
   })
 
-  // نقش پزشک اضافه می‌شود اما داشبورد عملیاتی تا تأیید مدیر فعال نیست (RBAC-004)
-  await db.userRole.upsert({
-    where: { userId_roleId: { userId: auth.user.id, roleId: (await db.role.findUnique({ where: { name: "DOCTOR" } }))!.id } },
-    update: {},
-    create: { userId: auth.user.id, roleId: (await db.role.findUnique({ where: { name: "DOCTOR" } }))!.id },
-  })
+  // تک‌نقشی: نقش پزشک جایگزین نقش فعلی می‌شود؛ داشبورد عملیاتی تا تأیید مدیر فعال نیست (RBAC-004)
+  const previousRoles = authRoles.join(",") || "—"
+  await setUserRole(auth.user.id, "DOCTOR")
 
-  await audit(auth.user, "DOCTOR_REGISTER_REQUEST", "DOCTOR", doctor.id, { specialty: data.specialty })
+  await audit(auth.user, "DOCTOR_REGISTER_REQUEST", "DOCTOR", doctor.id, {
+    specialty: data.specialty,
+    previousRoles,
+    singleRole: "DOCTOR",
+  })
   return ok({ doctorId: doctor.id, status: doctor.status })
 }

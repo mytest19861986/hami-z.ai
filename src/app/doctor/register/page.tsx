@@ -19,6 +19,7 @@ import { Send } from "lucide-react"
 interface DoctorStatus {
   specialty: string
   medicalCouncilCode: string
+  nationalCode?: string
   clinicName: string | null
   clinicAddress: string | null
   province: string | null
@@ -34,6 +35,7 @@ export default function DoctorRegisterPage() {
   const [existing, setExisting] = useState<DoctorStatus | null | "loading" | "none">("loading")
   const [form, setForm] = useState({
     medicalCouncilCode: "",
+    nationalCode: "",
     specialty: "",
     clinicName: "",
     clinicAddress: "",
@@ -138,6 +140,10 @@ export default function DoctorRegisterPage() {
             <Input dir="ltr" inputMode="numeric" value={form.medicalCouncilCode} onChange={(e) => setForm({ ...form, medicalCouncilCode: e.target.value.replace(/\D/g, "") })} className="text-left" disabled={submitted} />
           </div>
           <div className="space-y-1.5">
+            <label className="text-sm font-medium">کد ملی *</label>
+            <Input dir="ltr" inputMode="numeric" maxLength={10} value={form.nationalCode} onChange={(e) => setForm({ ...form, nationalCode: e.target.value.replace(/\D/g, "") })} className="text-left" disabled={submitted} />
+          </div>
+          <div className="space-y-1.5">
             <label className="text-sm font-medium">تخصص *</label>
             <Select value={form.specialty} onValueChange={(v) => setForm({ ...form, specialty: v })} disabled={submitted}>
               <SelectTrigger>
@@ -151,7 +157,7 @@ export default function DoctorRegisterPage() {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">نام مطب / کلینیک *</label>
+            <label className="text-sm font-medium">نام و نام خانوادگی پزشک / کلینیک *</label>
             <Input value={form.clinicName} onChange={(e) => setForm({ ...form, clinicName: e.target.value })} disabled={submitted} />
           </div>
           <div className="space-y-1.5">
@@ -176,7 +182,7 @@ export default function DoctorRegisterPage() {
           </div>
           {!submitted ? (
             <div className="sm:col-span-2">
-              <Button onClick={submit} disabled={loading || !form.medicalCouncilCode || !form.specialty || !form.clinicName || !form.province || !form.city}>
+              <Button onClick={submit} disabled={loading || !form.medicalCouncilCode || form.nationalCode.length !== 10 || !form.specialty || !form.clinicName || !form.province || !form.city}>
                 <Send className="ml-1 h-4 w-4" />
                 {loading ? "در حال ارسال…" : "ثبت و ارسال درخواست"}
               </Button>

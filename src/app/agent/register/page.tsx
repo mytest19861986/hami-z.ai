@@ -25,7 +25,7 @@ interface AgentStatus {
 
 export default function AgentRegisterPage() {
   const [existing, setExisting] = useState<AgentStatus | null | "loading" | "none">("loading")
-  const [form, setForm] = useState({ businessName: "", description: "", province: "", city: "", phone: "" })
+  const [form, setForm] = useState({ businessName: "", nationalCode: "", description: "", province: "", city: "", phone: "" })
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -36,7 +36,7 @@ export default function AgentRegisterPage() {
         if (!mounted) return
         if (d) {
           setExisting(d)
-          setForm({ businessName: d.businessName ?? "", description: d.description ?? "", province: d.province ?? "", city: d.city ?? "", phone: d.phone ?? "" })
+          setForm((f) => ({ ...f, businessName: d.businessName ?? "", description: d.description ?? "", province: d.province ?? "", city: d.city ?? "", phone: d.phone ?? "" }))
         } else setExisting("none")
       })
       .catch(() => {
@@ -85,6 +85,10 @@ export default function AgentRegisterPage() {
           <div className="space-y-1.5">
             <label className="text-sm font-medium">نام کسب‌وکار *</label>
             <Input value={form.businessName} onChange={(e) => setForm({ ...form, businessName: e.target.value })} disabled={submitted} />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">کد ملی *</label>
+            <Input dir="ltr" inputMode="numeric" maxLength={10} value={form.nationalCode} onChange={(e) => setForm({ ...form, nationalCode: e.target.value.replace(/\D/g, "") })} className="text-left" disabled={submitted} />
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium">تلفن ارتباطی</label>

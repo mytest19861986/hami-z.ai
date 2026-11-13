@@ -77,11 +77,14 @@ export async function PUT(req: NextRequest) {
     return fail("شهر انتخاب‌شده به استان تعلق ندارد.", 422)
   }
 
-  // یکتایی کد ملی در پروفایل‌ها (PROFILE-002)
+  // یکتایی کد ملی در سراسر سامانه (PROFILE-002 · SINGLE-IDENTITY):
+  // پروفایل‌های دیگر + دارندگان طرح (هر کد ملی فقط یک هویت)
   const nationalCode = data.nationalCode ? toEnDigits(data.nationalCode).trim() || null : undefined
   if (nationalCode) {
     const dup = await db.userProfile.findFirst({ where: { nationalCode, NOT: { userId: auth.user.id } } })
     if (dup) return fail("این کد ملی قبلاً برای حساب دیگری ثبت شده است.", 409)
+    const dupHolder = await db.planHolder.findUnique({ where: { nationalCode } })
+    if (dupHolder) return fail("این کد ملی قبلاً به‌عنوان دارندهٔ طرح ثبت شده است.", 409)
   }
 
   let birthDate: Date | null | undefined

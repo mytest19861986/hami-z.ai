@@ -290,7 +290,10 @@ export default function AdminUsersPage() {
                 </div>
 
                 <div>
-                  <Label className="mb-1.5 block">نقش‌ها</Label>
+                  <Label className="mb-1.5 block">نقش (هر حساب فقط یک نقش دارد)</Label>
+                  <div className="mb-2 text-xs text-muted-foreground">
+                    انتخاب نقش جدید، نقش فعلی را جایگزین می‌کند (سیاست تک‌نقشی: هر شماره موبایل فقط یک نقش).
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     {Object.entries(ROLE_NAMES)
                       .filter(([name]) => name !== "USER")
@@ -307,7 +310,7 @@ export default function AdminUsersPage() {
                                 : action({ action: "assign_role", userId: detail.id, role: name })
                             }
                           >
-                            {has ? "سلب" : "افزودن"}: {title}
+                            {has ? "سلب (بازگشت به کاربر عادی)" : "تعیین"}: {title}
                           </Button>
                         )
                       })}

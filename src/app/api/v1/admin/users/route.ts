@@ -8,6 +8,7 @@ import { notify } from "@/lib/audit"
 import { isValidNationalCode, isValidCardNumber, isValidSheba, normalizeSheba, toEnDigits } from "@/lib/validators"
 import { isValidProvinceCity } from "@/constants/geo"
 import { ROLE_NAMES } from "@/constants/permissions"
+import { setUserRole } from "@/lib/roles"
 
 // مدیریت کاربران و نقش‌ها (ADMIN-001..005 · RBAC-005/008)
 export async function GET(req: NextRequest) {
@@ -175,13 +176,15 @@ export async function POST(req: NextRequest) {
       return fail("استان یا شهر انتخاب‌شده معتبر نیست.", 422)
     }
 
-    // کد ملی یکتا است؛ تکرار برای کاربر دیگر مجاز نیست
+    // کد ملی یکتا است (SINGLE-IDENTITY)؛ تکرار برای کاربر دیگر یا دارندهٔ طرح مجاز نیست
     if (nationalCode) {
       const dup = await db.userProfile.findFirst({
         where: { nationalCode, userId: { not: target.id } },
         select: { id: true },
       })
       if (dup) return fail("این کد ملی قبلاً برای کاربر دیگری ثبت شده است.", 422)
+      const dupHolder = await db.planHolder.findUnique({ where: { nationalCode }, select: { id: true } })
+      if (dupHolder) return fail("این کد ملی قبلاً به‌عنوان دارندهٔ طرح ثبت شده است.", 422)
     }
 
     const profileData = {
@@ -217,21 +220,36 @@ export async function POST(req: NextRequest) {
   const role = await db.role.findUnique({ where: { name: data.role } })
   if (!role) return fail("نقش یافت نشد.", 404)
 
+  // تک‌نقشی (SINGLE-ROLE): اعطای نقش = جایگزینی نقش فعلی، نه افزودن به آن
   if (data.action === "assign_role") {
-    await db.userRole.upsert({
-      where: { userId_roleId: { userId: target.id, roleId: role.id } },
-      update: {},
-      create: { userId: target.id, roleId: role.id, grantedById: auth.user.id },
+    const previousRoles = target.roles.map((r) => r.role.name)
+    const replaced = previousRoles.length > 0 && !previousRoles.includes(data.role)
+    await setUserRole(target.id, data.role, auth.user.id)
+    await audit(auth.user, "ROLE_ASSIGNED", "USER", target.id, {
+      role: data.role,
+      previousRoles,
+      singleRolePolicy: true,
     })
-    await audit(auth.user, "ROLE_ASSIGNED", "USER", target.id, { role: data.role })
-    await notify(target.id, "افزوده‌شدن نقش جدید", `نقش «${role.title}» به حساب شما افزوده شد.`)
-    return ok({ assigned: true })
+    await notify(
+      target.id,
+      replaced ? "تغییر نقش حساب" : "افزوده‌شدن نقش جدید",
+      `نقش حساب شما «${role.title}» تعیین شد. هر شماره موبایل فقط یک نقش دارد.`,
+      "INFO"
+    )
+    return ok({ assigned: true, replacedPrevious: replaced })
   }
 
-  // revoke_role — نقش پایه USER سلب‌شدنی نیست
+  // revoke_role — نقش پایه USER سلب‌شدنی نیست؛ سلب نقش عملیاتی یعنی بازگشت به کاربر عادی
   if (data.role === "USER") return fail("نقش کاربر عادی قابل سلب نیست.", 422)
-  await db.userRole.deleteMany({ where: { userId: target.id, roleId: role.id } })
-  await audit(auth.user, "ROLE_REVOKED", "USER", target.id, { role: data.role })
-  await notify(target.id, "سلب نقش", `نقش «${role.title}» از حساب شما سلب شد.`)
+  if (!target.roles.some((r) => r.role.name === data.role)) {
+    return fail("این کاربر چنین نقشی ندارد.", 404)
+  }
+  await setUserRole(target.id, "USER", auth.user.id)
+  await audit(auth.user, "ROLE_REVOKED", "USER", target.id, {
+    role: data.role,
+    revertedTo: "USER",
+    singleRolePolicy: true,
+  })
+  await notify(target.id, "سلب نقش", `نقش «${role.title}» از حساب شما سلب شد و به «کاربر عادی» بازگشتید.`)
   return ok({ revoked: true })
 }

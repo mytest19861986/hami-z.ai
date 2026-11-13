@@ -31,6 +31,11 @@ export interface PanelNavItem {
   permission?: string
 }
 
+// مسیرهای «درخواست همکاری» برای هر کاربر واردشده باز هستند (SINGLE-ROLE):
+// کاربر عادی باید بتواند درخواست پزشک/نماینده بدهد؛ نقش تخصصی پس از ثبت درخواست
+// جایگزین نقش فعلی می‌شود و خانهٔ کاربر به‌روز می‌گردد.
+const OPEN_REQUEST_ROUTES = ["/doctor/register", "/agent/register"]
+
 export function PanelShell({
   panelKey,
   title,
@@ -59,7 +64,7 @@ export function PanelShell({
           router.replace("/auth/login")
           return
         }
-        if (me.home !== "/" + panelKey) {
+        if (me.home !== "/" + panelKey && !OPEN_REQUEST_ROUTES.includes(pathname)) {
           router.replace(me.home)
           return
         }
