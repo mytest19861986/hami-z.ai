@@ -16,6 +16,21 @@ interface BeforeInstallPromptEvent extends Event {
 const DISMISS_KEY = "hk_install_banner_dismiss_until" // مهر زمانی پایان ابطال
 const INSTALLED_KEY = "hk_app_installed" // نصب قطعی → هرگز نشان نده
 const DISMISS_MS = 3 * 24 * 60 * 60 * 1000 // ۳ روز
+const PROMPT_WAIT_MS = 10 * 1000 // حداکثر انتظار برای رویداد نصب مرورگر
+
+/** آیا صفحه داخل iframe اجرا می‌شود؟ (پنل پیش‌نمایش)
+ *  Chrome در iframe هرگز beforeinstallprompt نمی‌دهد؛ تشخیص زودهنگام جلوی
+ *  انتظار بی‌پایان و بنر ناقص را می‌گیرد.
+ */
+function isInIframe(): boolean {
+  if (typeof window === "undefined") return false
+  try {
+    return window.self !== window.top
+  } catch {
+    // دسترسی به window.top بین‌مبدأ خطا می‌دهد → یعنی داخل iframe است
+    return true
+  }
+}
 
 /** iOS / iPadOS؟ (iPadOS 13+ خود را Mac جا می‌زند) */
 function detectIOS(): boolean {
@@ -39,6 +54,31 @@ function isRunningStandalone(): boolean {
   return Boolean(standaloneQuery) || iOSStandalone
 }
 
+/* ─── حلقهٔ «رویداد نصب» مرورگر ───
+ * مشکل مسابقه (race): در حالت dev، hydration کند است و Chrome ممکن است
+ * beforeinstallprompt را قبل از وصل‌شدن شنوندهٔ React صادر کند و برای همیشه
+ * ساکت بماند. راه‌حل: شنوندهٔ زودهنگام در scope ماژول — رویداد حتی قبل از
+ * mount هم گرفته و نگه داشته می‌شود (hkStashedPrompt).
+ */
+let hkStashedPrompt: BeforeInstallPromptEvent | null = null
+let hkStashedFired = false
+
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault()
+    hkStashedPrompt = e as BeforeInstallPromptEvent
+    hkStashedFired = true
+  })
+  window.addEventListener("appinstalled", () => {
+    hkStashedPrompt = null
+    hkStashedFired = false
+    try {
+      localStorage.setItem(INSTALLED_KEY, "1")
+    } catch {}
+    window.dispatchEvent(new CustomEvent("hk-app-installed"))
+  })
+}
+
 /* ─── کامپوننت ─── */
 
 /**
@@ -46,6 +86,7 @@ function isRunningStandalone(): boolean {
  * • اندروید/مرورگرهای استاندارد: شنود beforeinstallprompt + دکمهٔ «نصب اپلیکیشن حامی‌کارت»
  * • iOS/Safari: راهنمای تصویری دکمهٔ Share و «Add to Home Screen»
  * • بستن → ابطال ۳ روزه در localStorage؛ نصب موفق → مخفی‌سازی همیشگی
+ * • داخل iframe (پنل پیش‌نمایش) یا اجرای standalone نمایش داده نمی‌شود
  */
 export function InstallBanner() {
   const [visible, setVisible] = useState(false)
@@ -53,65 +94,117 @@ export function InstallBanner() {
   const [promptEvent, setPromptEvent] = useState<BeforeInstallPromptEvent | null>(null)
   const [installing, setInstalling] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const waitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pathname = usePathname()
 
   // بنر نصب فقط برای صفحات عمومی معنا دارد؛ در پنل‌های داخلی (ادمین/کاربر/پزشک/نماینده/ورود)
   // نمایش داده نمی‌شود تا روی عناصر شناور پنل‌ها (تقویم، دراپ‌داون‌ها) نیفتد.
   const isPanelRoute =
     typeof pathname === "string" &&
-    ["/admin", "/user", "/doctor", "/agent", "/auth", "/plans", "/offline"].some((p) => pathname === p || pathname.startsWith(`${p}/`))
+    ["/admin", "/user", "/doctor", "/agent", "/auth", "/plans", "/offline"].some(
+      (p) => pathname === p || pathname.startsWith(`${p}/`)
+    )
+
+  // ناوبری به مسیر پنل → بنر باید بسته شود (effect بالا فقط یک‌بار اجرا می‌شود)
+  useEffect(() => {
+    if (isPanelRoute) {
+      setVisible(false)
+      if (timerRef.current) clearTimeout(timerRef.current)
+      if (waitTimerRef.current) clearTimeout(waitTimerRef.current)
+    }
+  }, [isPanelRoute])
 
   useEffect(() => {
     if (isPanelRoute) return
+    if (isInIframe()) return // داخل iframe رویداد نصب صادر نمی‌شود؛ بنر بی‌فایده است
     if (isRunningStandalone()) return
-    if (localStorage.getItem(INSTALLED_KEY) === "1") return
-    // دورهٔ ابطال ۳ روزهٔ کاربر
-    const until = Number(localStorage.getItem(DISMISS_KEY) || 0)
-    if (Number.isFinite(until) && Date.now() < until) return
+    let dismissed = false
+    try {
+      if (localStorage.getItem(INSTALLED_KEY) === "1") return
+      // دورهٔ ابطال ۳ روزهٔ کاربر
+      const until = Number(localStorage.getItem(DISMISS_KEY) || 0)
+      if (Number.isFinite(until) && Date.now() < until) return
+    } catch {
+      /* localStorage در حالت خصوصی برخی مرورگرها خطا می‌دهد → ادامه با بنر */
+    }
+
+    const show = () => setVisible(true)
 
     const ios = detectIOS()
     setIsIOS(ios)
 
     // iOS: هرگز رویداد beforeinstallprompt نمی‌گیرد → مستقیم راهنما
     if (ios) {
-      timerRef.current = setTimeout(() => setVisible(true), 900)
+      timerRef.current = setTimeout(show, 900)
       return
     }
 
-    // اندروید / استاندارد: منتظر رویداد نصب از مرورگر
+    // اندروید / استاندارد:
+    // ۱) اگر رویداد نصب قبل از mount رسیده باشد (race) → از مخزن بردار
+    if (hkStashedPrompt) setPromptEvent(hkStashedPrompt)
+
+    // ۲) شنوندگان زندهٔ دورهٔ mount (رویدادهای بعدی + نصب قطعی)
     const onBeforeInstall = (e: Event) => {
       e.preventDefault()
-      setPromptEvent(e as BeforeInstallPromptEvent)
-      timerRef.current = setTimeout(() => setVisible(true), 700)
+      hkStashedPrompt = e as BeforeInstallPromptEvent
+      setPromptEvent(hkStashedPrompt)
+      if (dismissed) return
+      if (timerRef.current) clearTimeout(timerRef.current)
+      timerRef.current = setTimeout(show, 700)
     }
     const onInstalled = () => {
-      localStorage.setItem(INSTALLED_KEY, "1")
+      dismissed = true
       setVisible(false)
+      setPromptEvent(null)
     }
-
     window.addEventListener("beforeinstallprompt", onBeforeInstall)
     window.addEventListener("appinstalled", onInstalled)
-    return () => {
+    window.addEventListener("hk-app-installed", onInstalled as EventListener)
+
+    // ۳) رویداد از قبل رسیده یا در انتظار؛ اگر مرورگر معیارهای نصب را دارد اما
+    //    هنوز صادر نکرده، تا ۱۰ ثانیه منتظر می‌مانیم (فرصت کشف). اگر آمد دکمهٔ
+    //    نصب فعال می‌شود؛ اگر نیامد (مثل Chrome دسکتاپ بدون تعامل کافی یا
+    //    محیط‌هایی که نصب را عرضه نمی‌کنند) بنر را نشان نمی‌دهیم تا دروغ نگوییم.
+    if (!hkStashedPrompt) {
+      waitTimerRef.current = setTimeout(() => {
+        if (dismissed) return
+        if (hkStashedPrompt) return // در همین لحظه رسید
+        cleanup()
+      }, PROMPT_WAIT_MS)
+    } else if (!dismissed) {
+      timerRef.current = setTimeout(show, 700)
+    }
+
+    function cleanup() {
       window.removeEventListener("beforeinstallprompt", onBeforeInstall)
       window.removeEventListener("appinstalled", onInstalled)
+      window.removeEventListener("hk-app-installed", onInstalled as EventListener)
       if (timerRef.current) clearTimeout(timerRef.current)
+      if (waitTimerRef.current) clearTimeout(waitTimerRef.current)
     }
+    return cleanup
   }, [])
 
   const dismiss = useCallback(() => {
-    localStorage.setItem(DISMISS_KEY, String(Date.now() + DISMISS_MS))
+    try {
+      localStorage.setItem(DISMISS_KEY, String(Date.now() + DISMISS_MS))
+    } catch {}
     setVisible(false)
   }, [])
 
   const install = useCallback(async () => {
-    if (!promptEvent) return
+    const ev = promptEvent ?? hkStashedPrompt
+    if (!ev) return
     try {
       setInstalling(true)
-      await promptEvent.prompt()
-      const choice = await promptEvent.userChoice.catch(() => null)
+      await ev.prompt()
+      const choice = await ev.userChoice.catch(() => null)
       if (choice?.outcome === "accepted") {
-        localStorage.setItem(INSTALLED_KEY, "1")
+        try {
+          localStorage.setItem(INSTALLED_KEY, "1")
+        } catch {}
       }
+      hkStashedPrompt = null
       setPromptEvent(null)
       setVisible(false)
     } finally {
@@ -179,7 +272,7 @@ export function InstallBanner() {
               type="button"
               className="h-9 flex-1 gap-1.5 text-xs font-bold"
               onClick={install}
-              disabled={installing || !promptEvent}
+              disabled={installing || !(promptEvent ?? hkStashedPrompt)}
             >
               <Smartphone className="h-4 w-4" aria-hidden />
               {installing ? "در حال باز کردن…" : "نصب اپلیکیشن حامی‌کارت"}
