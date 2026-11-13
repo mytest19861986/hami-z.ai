@@ -10,7 +10,7 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
       title="پنل کاربر"
       nav={[
         { href: "/user", label: "داشبورد", icon: <LayoutDashboard className="h-4 w-4" /> },
-        { href: "/user/card", label: "کارت مجازی", icon: <CreditCard className="h-4 w-4" /> },
+        { href: "/user/card", label: "خرید حامی کارت", icon: <CreditCard className="h-4 w-4" /> },
         { href: "/user/memberships", label: "طرح‌ها و عضویت‌ها", icon: <IdCard className="h-4 w-4" /> },
         { href: "/user/purchases", label: "سوابق خرید", icon: <ShoppingBag className="h-4 w-4" /> },
         { href: "/user/wallet", label: "کیف پول و پورسانت", icon: <Wallet className="h-4 w-4" /> },

@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { usePathname } from "next/navigation"
 import { BrandMark } from "@/components/shared/brand"
 import { Button } from "@/components/ui/button"
 import { Share, X, Smartphone, Sparkles } from "lucide-react"
@@ -52,8 +53,16 @@ export function InstallBanner() {
   const [promptEvent, setPromptEvent] = useState<BeforeInstallPromptEvent | null>(null)
   const [installing, setInstalling] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pathname = usePathname()
+
+  // بنر نصب فقط برای صفحات عمومی معنا دارد؛ در پنل‌های داخلی (ادمین/کاربر/پزشک/نماینده/ورود)
+  // نمایش داده نمی‌شود تا روی عناصر شناور پنل‌ها (تقویم، دراپ‌داون‌ها) نیفتد.
+  const isPanelRoute =
+    typeof pathname === "string" &&
+    ["/admin", "/user", "/doctor", "/agent", "/auth", "/plans", "/offline"].some((p) => pathname === p || pathname.startsWith(`${p}/`))
 
   useEffect(() => {
+    if (isPanelRoute) return
     if (isRunningStandalone()) return
     if (localStorage.getItem(INSTALLED_KEY) === "1") return
     // دورهٔ ابطال ۳ روزهٔ کاربر

@@ -52,7 +52,7 @@ export default function UserCardPage() {
   return (
     <div>
       <PageHeader
-        title="کارت مجازی حامی‌کارت"
+        title="خرید حامی کارت"
         description="کارت دیجیتال شما با سریال یکتا و بارکد — در مراجعه به پزشک طرف قرارداد، همین سریال را ارائه کنید (SURF-USER)."
       />
 
