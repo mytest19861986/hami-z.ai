@@ -1,7 +1,7 @@
 "use client"
 
 import { PanelShell } from "@/components/panels/panel-shell"
-import { LayoutDashboard, UserRound, IdCard, CreditCard, CalendarCheck, ShoppingBag, Stethoscope, Bell, Wallet, ClipboardPlus } from "lucide-react"
+import { LayoutDashboard, UserRound, IdCard, CreditCard, ShoppingBag, Stethoscope, Bell, Wallet, CalendarCheck } from "lucide-react"
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -17,8 +17,6 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
         { href: "/user/visits", label: "سوابق ویزیت", icon: <Stethoscope className="h-4 w-4" /> },
         { href: "/user/profile", label: "پروفایل", icon: <UserRound className="h-4 w-4" /> },
         { href: "/user/notifications", label: "اعلان‌ها", icon: <Bell className="h-4 w-4" /> },
-        { href: "/doctor/register", label: "درخواست همکاری پزشکی", icon: <ClipboardPlus className="h-4 w-4" /> },
-        { href: "/agent/register", label: "درخواست نمایندگی فروش", icon: <ClipboardPlus className="h-4 w-4" /> },
         { href: "/doctors", label: "پزشکان طرف قرارداد", icon: <CalendarCheck className="h-4 w-4" /> },
       ]}
     >
