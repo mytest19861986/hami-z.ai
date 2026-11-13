@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { Suspense, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -13,7 +13,7 @@ import { BrandMark, Shamseh } from "@/components/shared/brand"
 
 type Step = "mobile" | "otp" | "password"
 
-export default function LoginPage() {
+function LoginFormContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const nextUrl = searchParams.get("next")
@@ -303,5 +303,18 @@ export default function LoginPage() {
         </div>
       </main>
     </div>
+  )
+}
+
+/**
+ * پوستهٔ صفحهٔ ورود — فرم را داخل مرز Suspense نگه می‌دارد چون
+ * useSearchParams در prerender استاتیک بدون Suspense خطای بیلد می‌دهد
+ * (missing-suspense-with-csr-bailout در Next.js 16).
+ */
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginFormContent />
+    </Suspense>
   )
 }
