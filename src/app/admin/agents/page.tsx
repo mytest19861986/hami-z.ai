@@ -26,12 +26,13 @@ import { toast } from "@/hooks/use-toast"
 import { faDate } from "@/lib/jalali"
 import { toFaDigits } from "@/lib/jalali"
 import { label } from "@/constants/labels"
-import { Search, ChevronDown, Pencil, Eye, XCircle, TriangleAlert } from "lucide-react"
+import { Search, ChevronDown, Pencil, Eye, XCircle, TriangleAlert, FileText } from "lucide-react"
 
 interface AgentDoc {
   id: string
   docType: string
   fileName: string
+  filePath: string
   status: string
   rejectReason: string | null
 }
@@ -74,6 +75,8 @@ export default function AdminAgentsPage() {
   const [editAgent, setEditAgent] = useState<AgentRow | null>(null)
   const [reviewAction, setReviewAction] = useState<ReviewAction | null>(null)
   const [actionBusy, setActionBusy] = useState(false)
+  // پیش‌نمایش مدرک نماینده (عکس داخل مودال، PDF در تب جدید)
+  const [previewDoc, setPreviewDoc] = useState<AgentDoc | null>(null)
 
   const requestKey = JSON.stringify([q, status, page])
   const loading = requestKey !== loadedKey
@@ -273,12 +276,18 @@ export default function AdminAgentsPage() {
                             <div className="mt-0.5 text-xs text-muted-foreground">{doc.fileName}</div>
                             {doc.rejectReason ? <div className="mt-0.5 text-xs text-rose-600">دلیل رد: {doc.rejectReason}</div> : null}
                           </div>
-                          {doc.status === "PENDING" ? (
-                            <div className="flex gap-1.5">
-                              <Button size="sm" variant="outline" onClick={() => action({ action: "review_document", documentId: doc.id, decision: "APPROVE" }, "مدرک تأیید شد")}>تأیید</Button>
-                              <Button size="sm" variant="destructive" disabled={reason.trim().length < 3} onClick={() => action({ action: "review_document", documentId: doc.id, decision: "REJECT", reason })}>رد</Button>
-                            </div>
-                          ) : null}
+                          <div className="flex gap-1.5">
+                            <Button size="sm" variant="secondary" onClick={() => setPreviewDoc(doc)}>
+                              <Eye className="ml-1 h-3.5 w-3.5" />
+                              مشاهده
+                            </Button>
+                            {doc.status === "PENDING" ? (
+                              <>
+                                <Button size="sm" variant="outline" onClick={() => action({ action: "review_document", documentId: doc.id, decision: "APPROVE" }, "مدرک تأیید شد")}>تأیید</Button>
+                                <Button size="sm" variant="destructive" disabled={reason.trim().length < 3} onClick={() => action({ action: "review_document", documentId: doc.id, decision: "REJECT", reason })}>رد</Button>
+                              </>
+                            ) : null}
+                          </div>
                         </div>
                       ))
                     )}
@@ -315,6 +324,66 @@ export default function AdminAgentsPage() {
 
       {/* عملیات ← مشاهده / ویرایش اطلاعات */}
       <AgentEditModal agent={editAgent} onClose={() => setEditAgent(null)} onSaved={refreshList} />
+
+      {/* پیش‌نمایش مدرک نماینده — عکس داخل مودال، PDF در تب جدید (نمایشگر داخلی مرورگر) */}
+      <Dialog open={!!previewDoc} onOpenChange={(o) => !o && setPreviewDoc(null)}>
+        <DialogContent className="max-w-2xl">
+          {previewDoc ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>
+                  {label(previewDoc.docType)} — {previewDoc.fileName}
+                </DialogTitle>
+                <DialogDescription>
+                  پیش‌نمایش مدرک بارگذاری‌شده توسط نماینده؛ پس از بررسی، مدرک را تأیید یا رد کنید.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="max-h-[65vh] overflow-auto rounded-lg border bg-muted/40 p-2">
+                {previewDoc.filePath.toLowerCase().endsWith(".pdf") ? (
+                  <div className="flex flex-col items-center gap-3 p-6 text-sm">
+                    <FileText className="h-10 w-10 text-muted-foreground" />
+                    <p>این مدرک یک فایل PDF است.</p>
+                    <Button size="sm" variant="outline" onClick={() => window.open(`/api/v1/admin/agent-docs/${previewDoc.id}`, "_blank", "noopener")}>
+                      باز کردن PDF در تب جدید
+                    </Button>
+                  </div>
+                ) : (
+                  <img
+                    src={`/api/v1/admin/agent-docs/${previewDoc.id}`}
+                    alt={previewDoc.fileName}
+                    className="mx-auto max-h-[60vh] w-auto rounded-md object-contain"
+                  />
+                )}
+              </div>
+              {previewDoc.status === "PENDING" ? (
+                <DialogFooter className="gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      action({ action: "review_document", documentId: previewDoc.id, decision: "APPROVE" }, "مدرک تأیید شد")
+                      setPreviewDoc(null)
+                    }}
+                  >
+                    تأیید مدرک
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={reason.trim().length < 3}
+                    onClick={() => {
+                      action({ action: "review_document", documentId: previewDoc.id, decision: "REJECT", reason }, "مدرک رد شد")
+                      setPreviewDoc(null)
+                    }}
+                  >
+                    رد مدرک {reason.trim().length < 3 ? "(نیاز به دلیل در کادر پایین مودال نماینده)" : ""}
+                  </Button>
+                </DialogFooter>
+              ) : null}
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
       {/* عملیات ← رد / تعلیق با ثبت دلیل */}
       <Dialog open={!!reviewAction} onOpenChange={(o) => !o && setReviewAction(null)}>

@@ -13,13 +13,17 @@ export async function GET() {
   const auth = await requireUser()
   if ("response" in auth) return auth.response
 
-  const settlements = await db.settlementRequest.findMany({
-    where: { userId: auth.user.id },
-    orderBy: { createdAt: "desc" },
-  })
+  const [settlements, minAmount] = await Promise.all([
+    db.settlementRequest.findMany({
+      where: { userId: auth.user.id },
+      orderBy: { createdAt: "desc" },
+    }),
+    // حداقل مبلغ مجاز از تنظیمات (ADMIN-023) تا داشبورد نماینده همیشه مقدار به‌روز را ببیند
+    getSetting("MIN_SETTLEMENT_AMOUNT").then((v) => parseInt(v, 10) || 100000),
+  ])
 
-  return ok(
-    settlements.map((s) => ({
+  return ok({
+    settlements: settlements.map((s) => ({
       id: s.id,
       amount: s.amount,
       status: s.status,
@@ -30,8 +34,9 @@ export async function GET() {
       createdAt: s.createdAt,
       reviewedAt: s.reviewedAt,
       paidAt: s.paidAt,
-    }))
-  )
+    })),
+    minAmount,
+  })
 }
 
 const createSchema = z.object({

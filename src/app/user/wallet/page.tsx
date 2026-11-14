@@ -82,7 +82,10 @@ export default function UserWalletPage() {
       .get<{ items: CommissionItem[] }>("/api/v1/agent/commissions")
       .then((r) => setCommissions(r.items ?? []))
       .catch(() => setCommissions([]))
-    api.get<SettlementItem[]>("/api/v1/agent/settlements").then(setSettlements).catch(() => setSettlements([]))
+    api
+      .get<{ settlements: SettlementItem[] }>("/api/v1/agent/settlements")
+      .then((r) => setSettlements(r.settlements ?? []))
+      .catch(() => setSettlements([]))
     api.get<ProfileRef>("/api/v1/user/profile")
       .then((d) => {
         setProfileRef(d)

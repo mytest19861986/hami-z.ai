@@ -67,6 +67,7 @@ export async function GET(req: NextRequest) {
         id: d.id,
         docType: d.docType,
         fileName: d.fileName,
+        filePath: d.filePath,
         status: d.status,
         rejectReason: d.rejectReason,
       })),

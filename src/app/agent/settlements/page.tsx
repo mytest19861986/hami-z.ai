@@ -45,7 +45,14 @@ export default function AgentSettlementsPage() {
   const [loading, setLoading] = useState(false)
 
   function load() {
-    api.get<Settlement[]>("/api/v1/agent/settlements").then(setItems).catch(() => setItems([]))
+    api
+      .get<{ settlements: Settlement[]; minAmount: number }>("/api/v1/agent/settlements")
+      .then((d) => {
+        setItems(d.settlements)
+        // حداقل مبلغ مجاز از تنظیمات ادمین — همیشه مقدار به‌روز سرور (نه مقدار پیش‌فرض هاردکد)
+        if (d.minAmount) setMinAmount(d.minAmount)
+      })
+      .catch(() => setItems([]))
     api.get<WalletSummary>("/api/v1/agent/wallet").then(setWallet).catch(() => {})
     api.get<{ profile: BankInfo | null }>("/api/v1/user/profile")
       .then((d) => setBankInfo(d.profile))
