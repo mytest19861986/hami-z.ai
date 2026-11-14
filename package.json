@@ -1,10 +1,10 @@
 {
   "name": "nextjs_tailwind_shadcn_ts",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "private": true,
   "scripts": {
     "dev": "bash scripts/dev.sh",
-    "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
+    "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/ && node scripts/link-standalone-db.mjs",
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "eslint .",
     "db:push": "prisma db push --accept-data-loss",
